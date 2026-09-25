@@ -1,0 +1,93 @@
+# Veyra API — manual checks (VS Code "REST Client" extension).
+# Cookies are kept between requests, so run "login" once and the httpOnly
+# access_token is sent automatically afterwards.
+#
+# Membership management needs a second user in the workspace. There is no
+# invitation endpoint yet (phase 2), so add one manually, e.g.:
+#   docker exec -it veyra-db-1 psql -U veyra -d veyra -c \
+#     "INSERT INTO workspace_members (\"workspaceId\", \"userId\", role, status, \"joinedAt\")
+#      VALUES ('<workspaceId>', '<userId>', 'MEMBER', 'ACTIVE', now());"
+
+@baseUrl = http://localhost:3001
+@email = alice@veyra.dev
+@password = correct-horse-battery
+
+### ─── Auth ──────────────────────────────────────────────────────────────
+
+### Register (first run only; 409 if the email exists)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "name": "Alice",
+  "password": "{{password}}"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Current user
+GET {{baseUrl}}/auth/me
+
+### ─── Workspaces ────────────────────────────────────────────────────────
+
+### 1. Create a workspace (caller becomes OWNER)
+# createdById is set once and never reassigned; it becomes null if the
+# creator account is deleted.
+# @name createWorkspace
+POST {{baseUrl}}/workspaces
+Content-Type: application/json
+
+{
+  "name": "Équipe Produit"
+}
+
+@workspaceId = {{createWorkspace.response.body.$.id}}
+
+### 2. List my workspaces (ACTIVE memberships, with my role)
+GET {{baseUrl}}/workspaces
+
+### 3. Workspace detail (any member)
+GET {{baseUrl}}/workspaces/{{workspaceId}}
+
+### 4. Rename (OWNER, ADMIN). The slug is kept stable.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}
+Content-Type: application/json
+
+{
+  "name": "Équipe Produit & Design"
+}
+
+### 5. List members (any member)
+# @name listMembers
+GET {{baseUrl}}/workspaces/{{workspaceId}}/members
+
+# First row = the creator. Change the index to target another member.
+@memberId = {{listMembers.response.body.$[0].id}}
+
+### 6. Change a member's role (OWNER only)
+# On your own membership this returns 403 (you cannot change your own role).
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/members/{{memberId}}
+Content-Type: application/json
+
+{
+  "role": "ADMIN"
+}
+
+### 7. Remove a member (OWNER, ADMIN)
+# On the last active OWNER this returns 409.
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}/members/{{memberId}}
+
+### 8. Delete the workspace (OWNER only; memberships cascade)
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}
+
+### Logout
+POST {{baseUrl}}/auth/logout
