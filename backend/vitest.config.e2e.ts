@@ -37,6 +37,11 @@ export default defineConfig({
       DATABASE_URL: testDatabaseUrl,
       JWT_SECRET: process.env.JWT_SECRET || 'e2e-test-secret',
       NODE_ENV: 'test',
+      // Never real email from a test run, whatever the local .env says. Suites
+      // that check sending inject an in-memory transport instead.
+      MAIL_ENABLED: 'false',
+      MAIL_FROM: 'Veyra <no-reply@veyra.test>',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
     },
   },
 });

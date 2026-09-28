@@ -2,13 +2,15 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull, MoreThan } from 'typeorm';
 import { normalizeEmail } from '../common/email.js';
 import { isUniqueViolation } from '../database/pg-errors.js';
-import type { User } from '../users/user.entity.js';
+import { MailService } from '../mail/mail.service.js';
+import { User } from '../users/user.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspace-member.entity.js';
 import { Workspace } from '../workspaces/entities/workspace.entity.js';
 import {
@@ -50,7 +52,11 @@ export interface InvitationView {
 }
 
 /** The creation response: the only place the raw token ever appears. */
-export type CreatedInvitation = InvitationView & { token: string };
+export type CreatedInvitation = InvitationView & {
+  token: string;
+  /** false when mail is disabled or the send failed; the invitation stands. */
+  emailSent: boolean;
+};
 
 /** Public preview: exactly what anyone holding the token may learn. */
 export interface InvitationPreview {
@@ -68,7 +74,12 @@ export interface RevokedInvitation {
 
 @Injectable()
 export class InvitationsService {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  private readonly logger = new Logger('Invitations');
+
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly mail: MailService,
+  ) {}
 
   async create(
     actor: WorkspaceMembership,
@@ -86,8 +97,9 @@ export class InvitationsService {
     const email = normalizeEmail(dto.email);
     const { token, tokenHash } = generateInvitationToken();
 
+    let invitation: Invitation;
     try {
-      const invitation = await this.dataSource.transaction(async (manager) => {
+      invitation = await this.dataSource.transaction(async (manager) => {
         const alreadyMember = await manager.exists(WorkspaceMember, {
           where: {
             workspaceId: actor.workspaceId,
@@ -128,7 +140,6 @@ export class InvitationsService {
           }),
         );
       });
-      return { ...toView(invitation), token };
     } catch (err) {
       if (isUniqueViolation(err, INVITATION_PENDING_UNIQUE)) {
         throw new ConflictException(
@@ -136,6 +147,45 @@ export class InvitationsService {
         );
       }
       throw err;
+    }
+
+    // After the COMMIT, never inside: a slow SMTP server must not hold the
+    // transaction open. The invitation stands whatever happens to the email.
+    const emailSent = await this.sendInvitationEmail(invitation, token);
+    return { ...toView(invitation), token, emailSent };
+  }
+
+  /** true only if the email actually left. Never throws, never logs the token. */
+  private async sendInvitationEmail(
+    invitation: Invitation,
+    token: string,
+  ): Promise<boolean> {
+    try {
+      const workspace = await this.dataSource.manager.findOneByOrFail(
+        Workspace,
+        { id: invitation.workspaceId },
+      );
+      const inviter = invitation.invitedById
+        ? await this.dataSource.manager.findOneBy(User, {
+            id: invitation.invitedById,
+          })
+        : null;
+      const outcome = await this.mail.sendInvitation({
+        to: invitation.email,
+        workspaceName: workspace.name,
+        inviterName: inviter?.name ?? null,
+        role: invitation.role,
+        token,
+        expiresAt: invitation.expiresAt,
+      });
+      return outcome === 'sent';
+    } catch (err) {
+      // Only the invitation id: the error comes from the database, but the
+      // token must never be one mistake away from a log line.
+      this.logger.error(
+        `Could not prepare the email of invitation ${invitation.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+      return false;
     }
   }
 

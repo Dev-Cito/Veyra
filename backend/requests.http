@@ -288,6 +288,8 @@ Content-Type: application/json
 
 ### Invite an email (OWNER, ADMIN). role: ADMIN (OWNER only) or MEMBER; OWNER -> 400.
 # 409 if the email is already an active member or already has a pending invitation.
+# The email is sent after the COMMIT; the response adds `emailSent` (false when
+# MAIL_ENABLED is not "true" or the send failed; the invitation stands either way).
 # @name createInvitation
 POST {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/invitations
 Content-Type: application/json
@@ -346,3 +348,20 @@ Content-Type: application/json
 
 ### The invitee now sees the workspace
 GET {{baseUrl}}/workspaces
+
+### ─── Reminders (phase 5) ────────────────────────────────────────────
+# The hourly cron emails assignees of tasks due within 24 h, once per task.
+# Manual run, this workspace only (OWNER; 2 per minute). Log back in as the
+# OWNER first if you ran the invitation flow above.
+
+### Log in as the OWNER
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Run the reminder pass now: { tasksProcessed, emailsSent, emailsFailed }
+POST {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/reminders/run

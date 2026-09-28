@@ -3,12 +3,16 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 
-/** Requests per minute and per client IP, on unauthenticated entry points only. */
+/**
+ * Requests per minute and per client IP: unauthenticated entry points, plus
+ * the manual reminder trigger (it sends emails).
+ */
 export const RATE_LIMITS = {
   invitationPreview: 20,
   invitationAccept: 10,
   login: 10,
   register: 5,
+  remindersRun: 2,
 } as const;
 
 export const RATE_LIMIT_MESSAGE = 'Too many requests, please try again later';

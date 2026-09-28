@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, LoggerService } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
@@ -6,17 +6,34 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import { MAIL_TRANSPORT, type MailTransport } from '../src/mail/mail.config.js';
 import { WorkspaceMember } from '../src/workspaces/entities/workspace-member.entity.js';
 import {
   MembershipStatus,
   type WorkspaceRole,
 } from '../src/workspaces/workspace.enums.js';
 
-export async function createTestApp(): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+export interface TestAppOptions {
+  /** Replaces the (disabled) mail transport, e.g. with an InMemoryTransport. */
+  mailTransport?: MailTransport;
+  /** Receives every log line, all levels (Nest's test logger drops most). */
+  logger?: LoggerService;
+}
+
+export async function createTestApp(
+  options: TestAppOptions = {},
+): Promise<INestApplication> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  if (options.mailTransport) {
+    builder = builder
+      .overrideProvider(MAIL_TRANSPORT)
+      .useValue(options.mailTransport);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
+  if (options.logger) {
+    app.useLogger(options.logger);
+  }
   configureApp(app);
   // Listen once, on 127.0.0.1 explicitly. Otherwise supertest calls
   // listen(0) per request on the dual-stack wildcard (::), and on macOS the
@@ -93,4 +110,58 @@ export function addMember(
       status,
       joinedAt: status === MembershipStatus.ACTIVE ? new Date() : null,
     });
+}
+
+type SentMail = Parameters<MailTransport['sendMail']>[0];
+
+/** Records messages in memory; never opens a socket. */
+export class InMemoryTransport implements MailTransport {
+  readonly sent: SentMail[] = [];
+  /** Set to make every send fail with this error. */
+  failWith: Error | null = null;
+  /**
+   * Make every send fail with an error that echoes the whole message, body
+   * included, as some SMTP servers do: the worst case for secrets in logs.
+   */
+  failEchoingMessage = false;
+  /** Artificial latency, to let concurrent runs overlap. */
+  delayMs = 0;
+
+  async sendMail(message: SentMail): Promise<void> {
+    if (this.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    }
+    if (this.failWith) {
+      throw this.failWith;
+    }
+    if (this.failEchoingMessage) {
+      throw new Error(
+        `550 rejected: ${message.text} ${JSON.stringify(message)}`,
+      );
+    }
+    this.sent.push(message);
+  }
+}
+
+/** Captures every log line, whatever its level. */
+export class CapturingLogger implements LoggerService {
+  readonly lines: string[] = [];
+  private record(level: string, message: unknown, rest: unknown[]) {
+    this.lines.push([level, message, ...rest].map(String).join(' '));
+  }
+  log(message: unknown, ...rest: unknown[]) {
+    this.record('log', message, rest);
+  }
+  error(message: unknown, ...rest: unknown[]) {
+    this.record('error', message, rest);
+  }
+  warn(message: unknown, ...rest: unknown[]) {
+    this.record('warn', message, rest);
+  }
+  debug(message: unknown, ...rest: unknown[]) {
+    this.record('debug', message, rest);
+  }
+  verbose(message: unknown, ...rest: unknown[]) {
+    this.record('verbose', message, rest);
+  }
 }

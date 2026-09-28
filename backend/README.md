@@ -71,6 +71,31 @@ l'URL du navigateur, mais n'apparaît plus dans les chemins d'URL reçus par le
 serveur, ni dans les logs d'accès de Render et des proxys. Le front doit éviter
 de charger des ressources tierces sur cette page (en-tête `Referer`).
 
+## Emails et rappels
+
+Les emails (invitation, rappel d'échéance) partent via SMTP avec Nodemailer.
+**L'application démarre et fonctionne sans aucune de ces variables** : si
+`MAIL_ENABLED` ne vaut pas `true`, ou si la configuration est incomplète, aucun
+transport n'est créé, aucune connexion n'est ouverte, et chaque email est
+seulement logué (destinataire et sujet, niveau debug). Une invitation reste
+valide et renvoie `emailSent: false`.
+
+| Variable | Rôle |
+| --- | --- |
+| `MAIL_ENABLED` | `true` pour envoyer réellement ; toute autre valeur désactive l'envoi |
+| `SMTP_HOST` | Serveur SMTP (requis si activé) |
+| `SMTP_PORT` | Port SMTP (requis si activé) |
+| `SMTP_SECURE` | `true` pour TLS implicite (souvent 465), sinon STARTTLS |
+| `SMTP_USER`, `SMTP_PASSWORD` | Identifiants, les deux ou aucun |
+| `MAIL_FROM` | Adresse d'expédition (requise si activé) |
+| `FRONTEND_URL` | Base des liens (`/invite?token=…`, `/boards/:id`), requise si activé |
+
+Le rappel d'échéance tourne toutes les heures : chaque tâche dont la
+`dueDate` tombe dans les 24 heures reçoit un seul rappel, envoyé à ses
+assignés. Sûr avec plusieurs instances (`FOR UPDATE SKIP LOCKED`, tâches
+marquées avant l'envoi). Un OWNER peut déclencher la passe pour son workspace :
+`POST /workspaces/:workspaceId/reminders/run` (2 par minute).
+
 ## Limitations connues
 
 - **Suppression de compte utilisateur non exposée.** Une suppression directe en
@@ -119,6 +144,21 @@ de charger des ressources tierces sur cette page (en-tête `Referer`).
   stockage partagé (Redis) sera nécessaire au passage à plusieurs instances.
   L'IP client est lue avec `trust proxy = 1` (un seul proxy devant l'app) : à
   revalider si l'infrastructure ajoute un saut (CDN devant Render).
+- **Cron et free tier Render.** Sur le free tier, le service s'endort après
+  une période d'inactivité, et le cron ne s'exécute pas pendant le sommeil. Ce
+  n'est pas un bug applicatif mais une contrainte d'hébergement : les tâches
+  dont l'échéance tombe pendant le sommeil peuvent ne jamais recevoir de
+  rappel. L'endpoint `POST /workspaces/:workspaceId/reminders/run` permet de
+  déclencher le traitement à la demande.
+- **Aucun retry en cas d'échec SMTP.** Un email perdu est perdu : pour un
+  rappel, `reminderSent` reste à `true` (marqué avant l'envoi, pour ne jamais
+  envoyer de doublon) ; pour une invitation, `emailSent` vaut `false` et le
+  token reste utilisable. Un mécanisme de retry relève d'une file de messages,
+  hors périmètre.
+- **Envoi synchrone de l'invitation.** La réponse de `POST …/invitations`
+  attend l'envoi pour renseigner `emailSent` (après le COMMIT, jamais dedans).
+  Un SMTP lent ralentit donc cette requête, dans la limite des timeouts
+  configurés (10 s de connexion, 20 s de socket).
 
 ## Resources
 
