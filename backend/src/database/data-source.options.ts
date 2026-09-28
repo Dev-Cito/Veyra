@@ -1,5 +1,6 @@
 import type { DataSourceOptions } from 'typeorm';
 import { Board } from '../boards/board.entity.js';
+import { Invitation } from '../invitations/invitation.entity.js';
 import { List } from '../lists/list.entity.js';
 import { TaskAssignee } from '../tasks/entities/task-assignee.entity.js';
 import { Task } from '../tasks/entities/task.entity.js';
@@ -39,6 +40,7 @@ export function buildDataSourceOptions(
       List,
       Task,
       TaskAssignee,
+      Invitation,
     ],
     migrations,
     synchronize: false,

@@ -257,3 +257,92 @@ DELETE {{baseUrl}}/workspaces/{{workspaceId}}
 
 ### Logout
 POST {{baseUrl}}/auth/logout
+
+### ─── Invitations (phase 4) ──────────────────────────────────────────
+# Full flow: the OWNER invites an email, the invitee previews the invitation,
+# creates an account with that email and accepts. No email is sent yet
+# (phase 5): the raw token comes back once, in the creation response.
+# This section switches the session to the invitee: run it last.
+
+@inviteeEmail = bob@veyra.dev
+
+### Log back in as the OWNER
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Workspace for the invitation flow
+# @name inviteWorkspace
+POST {{baseUrl}}/workspaces
+Content-Type: application/json
+
+{
+  "name": "Invitation demo"
+}
+
+@inviteWorkspaceId = {{inviteWorkspace.response.body.$.id}}
+
+### Invite an email (OWNER, ADMIN). role: ADMIN (OWNER only) or MEMBER; OWNER -> 400.
+# 409 if the email is already an active member or already has a pending invitation.
+# @name createInvitation
+POST {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "{{inviteeEmail}}",
+  "role": "MEMBER"
+}
+
+@invitationToken = {{createInvitation.response.body.$.token}}
+
+### List pending invitations (OWNER, ADMIN): not accepted, revoked or expired
+GET {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/invitations
+
+### Public preview (no authentication needed): workspaceName, role, invitedByName, expiresAt
+# The token goes in the body, never in the URL (it would end up in access logs).
+# Any unusable or malformed token -> the same 404. Rate limited: 20/min per IP.
+POST {{baseUrl}}/invitations/preview
+Content-Type: application/json
+
+{
+  "token": "{{invitationToken}}"
+}
+
+### Revocation example: a second invitation, revoked right away
+# @name toRevoke
+POST {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/invitations
+Content-Type: application/json
+
+{
+  "email": "carol@veyra.dev",
+  "role": "MEMBER"
+}
+
+### Revoke it (OWNER, ADMIN). Returns { id, email, revokedAt }; the row is kept.
+DELETE {{baseUrl}}/workspaces/{{inviteWorkspaceId}}/invitations/{{toRevoke.response.body.$.id}}
+
+### The invitee creates an account with the invited email (409 if it exists: log in instead)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{inviteeEmail}}",
+  "name": "Bob",
+  "password": "{{password}}"
+}
+
+### Accept (authenticated). 403 if signed in with another email; 404 if unusable.
+# Rate limited: 10/min per IP (429 beyond).
+POST {{baseUrl}}/invitations/accept
+Content-Type: application/json
+
+{
+  "token": "{{invitationToken}}"
+}
+
+### The invitee now sees the workspace
+GET {{baseUrl}}/workspaces

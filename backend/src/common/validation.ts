@@ -1,6 +1,12 @@
 import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { MaxDate, MinDate, ValidateBy, ValidateIf } from 'class-validator';
+import {
+  MaxDate,
+  MinDate,
+  ValidateBy,
+  ValidateIf,
+  type ValidationOptions,
+} from 'class-validator';
 
 /** Trims string input; leaves other types for the validators to reject. */
 export const Trim = () =>
@@ -19,14 +25,26 @@ export const IsOptionalNonNull = () =>
  * query ("invalid byte sequence"), and bcrypt silently truncates a password
  * at the first NUL. Put it on every string that reaches the database or bcrypt.
  */
-export const NoNullBytes = () =>
-  ValidateBy({
-    name: 'noNullBytes',
-    validator: {
-      validate: (value) => typeof value !== 'string' || !value.includes('\0'),
-      defaultMessage: () => '$property must not contain NUL bytes',
+export const NoNullBytes = (options?: ValidationOptions) =>
+  ValidateBy(
+    {
+      name: 'noNullBytes',
+      validator: {
+        validate: (value) => typeof value !== 'string' || !value.includes('\0'),
+        defaultMessage: () => '$property must not contain NUL bytes',
+      },
     },
-  });
+    options,
+  );
+
+/**
+ * Validation options making a failed constraint answer 404 instead of 400
+ * (see configureApp). For fields where a malformed value must look exactly
+ * like an unknown one, e.g. an invitation token.
+ */
+export const asNotFound = (message: string): ValidationOptions => ({
+  context: { notFound: message },
+});
 
 /** Parses ISO strings into Dates so @IsDate / @MinDate can check them. */
 export const ToDate = () =>

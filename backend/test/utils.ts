@@ -34,11 +34,28 @@ export interface TestUser {
   agent: TestAgent;
 }
 
+/**
+ * A distinct client IP, sent as X-Forwarded-For. With trust proxy, req.ip
+ * resolves to it as it would behind Render's proxy, so each simulated user
+ * gets its own rate-limit budget: production limits apply unchanged.
+ */
+export function randomClientIp(): string {
+  const byte = () => Math.floor(Math.random() * 254) + 1;
+  return `10.${byte()}.${byte()}.${byte()}`;
+}
+
+/** A cookie-persisting client with its own client IP. */
+export function newAgent(app: INestApplication): TestAgent {
+  return request
+    .agent(app.getHttpServer())
+    .set('X-Forwarded-For', randomClientIp());
+}
+
 export async function registerUser(
   app: INestApplication,
   name = 'Test User',
 ): Promise<TestUser> {
-  const agent = request.agent(app.getHttpServer());
+  const agent = newAgent(app);
   const email = `user-${randomUUID()}@veyra.test`;
   const res = await agent
     .post('/auth/register')

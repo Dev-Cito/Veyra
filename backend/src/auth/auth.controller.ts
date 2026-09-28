@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { CookieOptions, Response } from 'express';
+import { RATE_LIMITS, RateLimit } from '../common/rate-limits.js';
 import type { User } from '../users/user.entity.js';
 import { AUTH_COOKIE, JWT_EXPIRES_IN_SECONDS } from './auth.constants.js';
 import { AuthService } from './auth.service.js';
@@ -34,6 +35,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @RateLimit(RATE_LIMITS.register)
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -47,6 +49,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @RateLimit(RATE_LIMITS.login)
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,

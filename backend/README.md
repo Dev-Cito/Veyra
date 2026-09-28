@@ -61,6 +61,16 @@ $ pnpm run test:cov
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
+## Invitations
+
+Le lien envoyé par email (phase 5) pointera vers le front :
+`https://<front>/invite?token=...`. La page lit le token dans son URL puis le
+**poste** au backend (`POST /invitations/preview`, puis
+`POST /invitations/accept` une fois connecté). Le token reste donc visible dans
+l'URL du navigateur, mais n'apparaît plus dans les chemins d'URL reçus par le
+serveur, ni dans les logs d'accès de Render et des proxys. Le front doit éviter
+de charger des ressources tierces sur cette page (en-tête `Referer`).
+
 ## Limitations connues
 
 - **Suppression de compte utilisateur non exposée.** Une suppression directe en
@@ -90,6 +100,25 @@ When you're ready to deploy your NestJS application to production, there are som
   l'emplacement visuellement ciblé. Ce choix garantit l'unicité des positions
   sous concurrence. Le client doit se réaligner sur la position renvoyée par la
   réponse plutôt que sur son état local.
+- **Invitations expirées et index partiel.** L'index unique partiel sur
+  (`workspaceId`, `email`) filtre sur `acceptedAt` et `revokedAt`, un index
+  Postgres ne pouvant pas dépendre de `now()`. Une invitation expirée reste donc
+  « en attente » pour l'index tout en étant absente du GET, ce qui bloquerait
+  définitivement l'email. Contournement retenu : à la création d'une nouvelle
+  invitation, toute invitation expirée pour le même email est automatiquement
+  révoquée. La ligne est conservée comme trace.
+- **Ordre des contrôles à l'acceptation.** La validité du token (404) est
+  vérifiée avant la correspondance d'email (403). Le porteur d'un token volé
+  apprend donc que le token est valide avant de se voir refuser l'accès.
+  Asymétrie assumée : l'ordre inverse ferait du 403 une confirmation
+  d'existence du token. Les deux ordres fuitent une information, celui-ci est
+  le moins exploitable puisque l'attaquant détient déjà le token.
+- **Rate limiting en mémoire, par instance.** Les compteurs de
+  `@nestjs/throttler` vivent dans la mémoire du process : avec plusieurs
+  instances Render, la limite effective est multipliée par leur nombre. Un
+  stockage partagé (Redis) sera nécessaire au passage à plusieurs instances.
+  L'IP client est lue avec `trust proxy = 1` (un seul proxy devant l'app) : à
+  revalider si l'infrastructure ajoute un saut (CDN devant Render).
 
 ## Resources
 
