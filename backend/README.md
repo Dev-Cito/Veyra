@@ -82,6 +82,14 @@ When you're ready to deploy your NestJS application to production, there are som
   suppression, pas de garantie transactionnelle. Verrouiller l'ensemble du
   sous-arbre pour rendre ces compteurs exacts bloquerait des écritures
   légitimes, arbitrage jugé défavorable.
+- **Sémantique du déplacement.** Le client envoie les identifiants des voisins,
+  mais le serveur ancre la position sur l'écart réellement adjacent en base
+  (juste après `previous`, ou juste avant `next` s'il est seul). Si l'état du
+  client est périmé et que des éléments se sont insérés entre les deux voisins
+  déclarés, l'élément atterrit immédiatement après `previous` et non à
+  l'emplacement visuellement ciblé. Ce choix garantit l'unicité des positions
+  sous concurrence. Le client doit se réaligner sur la position renvoyée par la
+  réponse plutôt que sur son état local.
 
 ## Resources
 

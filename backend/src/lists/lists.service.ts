@@ -2,11 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Board } from '../boards/board.entity.js';
-import { lockRow, nextPosition } from '../common/position.js';
+import {
+  type Moved,
+  moved,
+  rejectOutsider,
+  saveMove,
+} from '../common/moved.js';
+import { lockRow, nextPosition, planMove } from '../common/position.js';
 import { WorkspaceScope } from '../scope/workspace-scope.service.js';
 import { Task } from '../tasks/entities/task.entity.js';
 import type { WorkspaceMembership } from '../workspaces/workspace-membership.js';
 import type { CreateListDto } from './dto/create-list.dto.js';
+import type { MoveListDto } from './dto/move-list.dto.js';
 import type { UpdateListDto } from './dto/update-list.dto.js';
 import { List } from './list.entity.js';
 
@@ -55,6 +62,50 @@ export class ListsService {
       list.name = dto.name;
     }
     return this.dataSource.manager.save(list);
+  }
+
+  /**
+   * Reorders a list within its own board. Moving a list to another board is
+   * deliberately unsupported: its tasks would follow, an ambiguous operation.
+   */
+  move(
+    actor: WorkspaceMembership,
+    listId: string,
+    dto: MoveListDto,
+  ): Promise<Moved<List>> {
+    return this.dataSource.transaction(async (manager) => {
+      const list = await this.scope.listOrFail(
+        actor.workspaceId,
+        listId,
+        manager,
+      );
+      if (!(await lockRow(manager, Board, list.boardId))) {
+        throw new NotFoundException('Board not found');
+      }
+      // Re-read under the lock for a fresh position.
+      const current = await manager.findOneByOrFail(List, { id: list.id });
+
+      const plan = await planMove(
+        manager,
+        { entity: List, parentColumn: 'boardId', parentId: current.boardId },
+        { id: current.id, position: current.position, inGroup: true },
+        {
+          previous: { field: 'previousListId', id: dto.previousListId ?? null },
+          next: { field: 'nextListId', id: dto.nextListId ?? null },
+          rejectOutsider: rejectOutsider(
+            (id) => this.scope.listOrFail(actor.workspaceId, id, manager),
+            'the same board',
+          ),
+        },
+      );
+      if (plan.noop) {
+        return moved(current, false);
+      }
+      const saved = await saveMove(manager, List, current.id, {
+        position: plan.position,
+      });
+      return moved(saved, plan.reindexed);
+    });
   }
 
   /** Tasks go with it through ON DELETE CASCADE. */

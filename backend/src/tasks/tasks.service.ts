@@ -7,7 +7,18 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, type EntityManager } from 'typeorm';
-import { lockRow, nextPosition } from '../common/position.js';
+import {
+  type Moved,
+  moved,
+  rejectOutsider,
+  saveMove,
+} from '../common/moved.js';
+import {
+  lockRow,
+  lockRowsInOrder,
+  nextPosition,
+  planMove,
+} from '../common/position.js';
 import {
   isForeignKeyViolation,
   isUniqueViolation,
@@ -22,6 +33,7 @@ import {
 import type { WorkspaceMembership } from '../workspaces/workspace-membership.js';
 import type { AssignTaskDto } from './dto/assign-task.dto.js';
 import type { CreateTaskDto } from './dto/create-task.dto.js';
+import type { MoveTaskDto } from './dto/move-task.dto.js';
 import type { UpdateTaskDto } from './dto/update-task.dto.js';
 import {
   TASK_ASSIGNEE_UNIQUE,
@@ -91,6 +103,80 @@ export class TasksService {
       task.priority = dto.priority;
     }
     return this.withAssignees(await this.dataSource.manager.save(task));
+  }
+
+  /**
+   * Moves a task within its list or to another list of the workspace (any
+   * board). The client names the neighbours it was dropped between; the
+   * position is computed from their real positions (see planMove).
+   */
+  move(
+    actor: WorkspaceMembership,
+    taskId: string,
+    dto: MoveTaskDto,
+  ): Promise<Moved<Task>> {
+    return this.dataSource.transaction(async (manager) => {
+      const task = await this.scope.taskOrFail(
+        actor.workspaceId,
+        taskId,
+        manager,
+      );
+      // Within its own list, the task's scope check already proved the list
+      // is in the workspace: skip the second lookup.
+      const targetListId =
+        dto.targetListId === task.listId
+          ? task.listId
+          : (
+              await this.scope.listOrFail(
+                actor.workspaceId,
+                dto.targetListId,
+                manager,
+              )
+            ).id;
+
+      // Source and target lists, in ascending id order whatever the direction
+      // of the move: see lockRowsInOrder for the deadlock this prevents.
+      const listIds = [...new Set([task.listId, targetListId])];
+      if ((await lockRowsInOrder(manager, List, listIds)) !== listIds.length) {
+        throw new NotFoundException('List not found');
+      }
+      // Re-read under the locks: the task may have moved in the meantime.
+      const current = await manager.findOneBy(Task, { id: task.id });
+      if (!current) {
+        throw new NotFoundException('Task not found');
+      }
+      if (current.listId !== task.listId) {
+        throw new ConflictException(
+          'The task was moved concurrently; reload and retry',
+        );
+      }
+
+      const plan = await planMove(
+        manager,
+        { entity: Task, parentColumn: 'listId', parentId: targetListId },
+        {
+          id: current.id,
+          position: current.position,
+          inGroup: current.listId === targetListId,
+        },
+        {
+          previous: { field: 'previousTaskId', id: dto.previousTaskId ?? null },
+          next: { field: 'nextTaskId', id: dto.nextTaskId ?? null },
+          rejectOutsider: rejectOutsider(
+            (id) => this.scope.taskOrFail(actor.workspaceId, id, manager),
+            'the target list',
+          ),
+        },
+      );
+      if (plan.noop) {
+        return moved(current, false);
+      }
+      const saved = await saveMove(manager, Task, current.id, {
+        listId: targetListId,
+        position: plan.position,
+      });
+      return moved(saved, plan.reindexed);
+    });
   }
 
   /**

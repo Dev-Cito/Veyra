@@ -18,7 +18,12 @@ export async function createTestApp(): Promise<INestApplication> {
   }).compile();
   const app = moduleRef.createNestApplication();
   configureApp(app);
-  await app.init();
+  // Listen once, on 127.0.0.1 explicitly. Otherwise supertest calls
+  // listen(0) per request on the dual-stack wildcard (::), and on macOS the
+  // kernel may hand out a port that another local program already holds on
+  // 127.0.0.1 only; supertest then connects to 127.0.0.1:<port> and that
+  // program answers (random 401 / 404 responses from outside the app).
+  await app.listen(0, '127.0.0.1');
   return app;
 }
 

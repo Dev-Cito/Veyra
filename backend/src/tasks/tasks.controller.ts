@@ -15,9 +15,11 @@ import { WorkspaceGuard } from '../workspaces/guards/workspace.guard.js';
 import type { WorkspaceMembership } from '../workspaces/workspace-membership.js';
 import { AssignTaskDto } from './dto/assign-task.dto.js';
 import { CreateTaskDto } from './dto/create-task.dto.js';
+import { MoveTaskDto } from './dto/move-task.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
 import type { TaskAssignee } from './entities/task-assignee.entity.js';
 import type { Task } from './entities/task.entity.js';
+import type { Moved } from '../common/moved.js';
 import { TasksService } from './tasks.service.js';
 
 // Every route is open to any ACTIVE member; the delete rule (creator, OWNER or
@@ -51,6 +53,15 @@ export class TasksController {
     @Body() dto: UpdateTaskDto,
   ): Promise<Task> {
     return this.tasksService.update(membership, taskId, dto);
+  }
+
+  @Patch('tasks/:taskId/move')
+  move(
+    @CurrentMembership() membership: WorkspaceMembership,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() dto: MoveTaskDto,
+  ): Promise<Moved<Task>> {
+    return this.tasksService.move(membership, taskId, dto);
   }
 
   @Delete('tasks/:taskId')

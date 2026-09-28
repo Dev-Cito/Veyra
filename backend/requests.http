@@ -167,6 +167,65 @@ Content-Type: application/json
   "dueDate": null
 }
 
+### ─── Moves (phase 3) ───────────────────────────────────────────────
+# The client names the neighbours it dropped the item between, never a
+# position. previous null = head, next null = tail, both null = empty target
+# (409 if it is not). The response carries `reindexed`: when true, the
+# siblings were renumbered and should be reloaded.
+
+### Second task, to have neighbours to move around
+# @name createTask2
+POST {{baseUrl}}/workspaces/{{workspaceId}}/lists/{{listId}}/tasks
+Content-Type: application/json
+
+{
+  "title": "Review the API docs"
+}
+
+@task2Id = {{createTask2.response.body.$.id}}
+
+### Move a task to the head of a list (any member)
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{task2Id}}/move
+Content-Type: application/json
+
+{
+  "targetListId": "{{listId}}",
+  "previousTaskId": null,
+  "nextTaskId": "{{taskId}}"
+}
+
+### Move a task to the tail of a list. Any list of the workspace, any board.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{task2Id}}/move
+Content-Type: application/json
+
+{
+  "targetListId": "{{listId}}",
+  "previousTaskId": "{{taskId}}"
+}
+
+### Second list, to reorder lists
+# @name createList2
+POST {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}/lists
+Content-Type: application/json
+
+{
+  "name": "Done"
+}
+
+### Move a list within its board (OWNER, ADMIN). No boardId: cross-board is unsupported.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/lists/{{createList2.response.body.$.id}}/move
+Content-Type: application/json
+
+{
+  "nextListId": "{{listId}}"
+}
+
+### Move a board within its workspace (OWNER, ADMIN). Alone in its workspace: both null.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}/move
+Content-Type: application/json
+
+{}
+
 ### Assign a user (any member). Must be an ACTIVE member (400), once (409).
 POST {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}/assignees
 Content-Type: application/json

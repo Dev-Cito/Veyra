@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { lockRow, nextPosition } from '../common/position.js';
+import {
+  type Moved,
+  moved,
+  rejectOutsider,
+  saveMove,
+} from '../common/moved.js';
+import { lockRow, nextPosition, planMove } from '../common/position.js';
 import { List } from '../lists/list.entity.js';
 import { WorkspaceScope } from '../scope/workspace-scope.service.js';
 import { Task } from '../tasks/entities/task.entity.js';
@@ -9,6 +15,7 @@ import { Workspace } from '../workspaces/entities/workspace.entity.js';
 import type { WorkspaceMembership } from '../workspaces/workspace-membership.js';
 import { Board } from './board.entity.js';
 import type { CreateBoardDto } from './dto/create-board.dto.js';
+import type { MoveBoardDto } from './dto/move-board.dto.js';
 import type { UpdateBoardDto } from './dto/update-board.dto.js';
 
 export interface DeletedBoard {
@@ -95,6 +102,56 @@ export class BoardsService {
       board.description = dto.description;
     }
     return this.dataSource.manager.save(board);
+  }
+
+  /** Reorders a board within its workspace. */
+  move(
+    actor: WorkspaceMembership,
+    boardId: string,
+    dto: MoveBoardDto,
+  ): Promise<Moved<Board>> {
+    return this.dataSource.transaction(async (manager) => {
+      const board = await this.scope.boardOrFail(
+        actor.workspaceId,
+        boardId,
+        manager,
+      );
+      if (!(await lockRow(manager, Workspace, actor.workspaceId))) {
+        throw new NotFoundException('Workspace not found');
+      }
+      // Re-read under the lock for a fresh position.
+      const current = await manager.findOneByOrFail(Board, { id: board.id });
+
+      const plan = await planMove(
+        manager,
+        {
+          entity: Board,
+          parentColumn: 'workspaceId',
+          parentId: current.workspaceId,
+        },
+        { id: current.id, position: current.position, inGroup: true },
+        {
+          previous: {
+            field: 'previousBoardId',
+            id: dto.previousBoardId ?? null,
+          },
+          next: { field: 'nextBoardId', id: dto.nextBoardId ?? null },
+          // A workspace is the whole sibling group: boardOrFail 404s outside
+          // it, so a board neighbour can never get the 400.
+          rejectOutsider: rejectOutsider(
+            (id) => this.scope.boardOrFail(actor.workspaceId, id, manager),
+            'the same workspace',
+          ),
+        },
+      );
+      if (plan.noop) {
+        return moved(current, false);
+      }
+      const saved = await saveMove(manager, Board, current.id, {
+        position: plan.position,
+      });
+      return moved(saved, plan.reindexed);
+    });
   }
 
   /** Lists and tasks go with it through ON DELETE CASCADE. */

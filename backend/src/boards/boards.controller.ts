@@ -16,7 +16,9 @@ import { WorkspaceGuard } from '../workspaces/guards/workspace.guard.js';
 import type { WorkspaceMembership } from '../workspaces/workspace-membership.js';
 import type { Board } from './board.entity.js';
 import { BoardsService, type DeletedBoard } from './boards.service.js';
+import type { Moved } from '../common/moved.js';
 import { CreateBoardDto } from './dto/create-board.dto.js';
+import { MoveBoardDto } from './dto/move-board.dto.js';
 import { UpdateBoardDto } from './dto/update-board.dto.js';
 
 @Controller('workspaces/:workspaceId/boards')
@@ -64,6 +66,16 @@ export class BoardsController {
     @Body() dto: UpdateBoardDto,
   ): Promise<Board> {
     return this.boardsService.update(membership, boardId, dto);
+  }
+
+  @Patch(':boardId/move')
+  @WorkspaceRoles('OWNER', 'ADMIN')
+  move(
+    @CurrentMembership() membership: WorkspaceMembership,
+    @Param('boardId', ParseUUIDPipe) boardId: string,
+    @Body() dto: MoveBoardDto,
+  ): Promise<Moved<Board>> {
+    return this.boardsService.move(membership, boardId, dto);
   }
 
   @Delete(':boardId')
