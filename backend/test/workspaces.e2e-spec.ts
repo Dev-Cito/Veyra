@@ -192,11 +192,35 @@ describe('Workspaces RBAC (e2e)', () => {
       expect(res.body.slug).toBe(workspace.slug);
     });
 
-    it('lets the OWNER delete the workspace, cascading memberships', async () => {
+    it('lets the OWNER delete the workspace, reporting what cascaded', async () => {
       const owner = await registerUser(app);
+      const member = await registerUser(app);
       const workspace = await createWorkspace(owner);
+      await addMember(workspace.id, member, WorkspaceRole.MEMBER);
+      const base = `/workspaces/${workspace.id}`;
+      const board = await owner.agent
+        .post(`${base}/boards`)
+        .send({ name: 'B' })
+        .expect(201);
+      const list = await owner.agent
+        .post(`${base}/boards/${board.body.id}/lists`)
+        .send({ name: 'L' })
+        .expect(201);
+      for (const title of ['T1', 'T2']) {
+        await member.agent
+          .post(`${base}/lists/${list.body.id}/tasks`)
+          .send({ title })
+          .expect(201);
+      }
 
-      await owner.agent.delete(`/workspaces/${workspace.id}`).expect(204);
+      const res = await owner.agent.delete(base).expect(200);
+      expect(res.body).toEqual({
+        id: workspace.id,
+        deletedBoards: 1,
+        deletedLists: 1,
+        deletedTasks: 2,
+        deletedMembers: 2,
+      });
       await owner.agent.get(`/workspaces/${workspace.id}`).expect(403);
       const remaining = await dataSource
         .getRepository(WorkspaceMember)
@@ -227,7 +251,14 @@ describe('Workspaces RBAC (e2e)', () => {
 
       await owner.agent
         .delete(`/workspaces/${workspace.id}/members/${ownMembership.id}`)
-        .expect(204);
+        .expect(200)
+        .expect(({ body }) =>
+          expect(body).toEqual({
+            workspaceId: workspace.id,
+            userId: owner.id,
+            removedAssignments: 0,
+          }),
+        );
 
       const res = await coOwner.agent
         .get(`/workspaces/${workspace.id}`)
@@ -306,7 +337,7 @@ describe('Workspaces RBAC (e2e)', () => {
 
       await admin.agent
         .delete(`/workspaces/${workspace.id}/members/${target.id}`)
-        .expect(204);
+        .expect(200);
       await member.agent.get(`/workspaces/${workspace.id}`).expect(403);
     });
 

@@ -1,10 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length } from 'class-validator';
+import { IsString, Length } from 'class-validator';
+import { IsOptionalNonNull, NoNullBytes } from '../../common/validation.js';
 
 export class UpdateWorkspaceDto {
-  @IsOptional()
+  @IsOptionalNonNull()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @Length(1, 100)
+  @NoNullBytes()
   name?: string;
 }

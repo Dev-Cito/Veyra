@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength } from 'class-validator';
+import { NoNullBytes } from '../../common/validation.js';
 
 export class LoginDto {
   @Transform(({ value }) =>
@@ -7,9 +8,11 @@ export class LoginDto {
   )
   @IsEmail()
   @MaxLength(255)
+  @NoNullBytes()
   email: string;
 
   @IsString()
   @MaxLength(72)
+  @NoNullBytes()
   password: string;
 }

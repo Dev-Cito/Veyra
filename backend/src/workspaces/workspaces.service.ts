@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Not, Repository } from 'typeorm';
+import { Board } from '../boards/board.entity.js';
 import { isUniqueViolation } from '../database/pg-errors.js';
+import { List } from '../lists/list.entity.js';
+import { TaskAssignee } from '../tasks/entities/task-assignee.entity.js';
+import { Task } from '../tasks/entities/task.entity.js';
 import type { CreateWorkspaceDto } from './dto/create-workspace.dto.js';
 import type { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 import type { UpdateWorkspaceDto } from './dto/update-workspace.dto.js';
@@ -23,6 +27,21 @@ import type { WorkspaceMembership } from './workspace-membership.js';
 const MAX_SLUG_ATTEMPTS = 5;
 
 export type WorkspaceWithRole = Workspace & { role: WorkspaceRole };
+
+export interface DeletedWorkspace {
+  id: string;
+  deletedBoards: number;
+  deletedLists: number;
+  deletedTasks: number;
+  deletedMembers: number;
+}
+
+export interface RemovedMember {
+  workspaceId: string;
+  userId: string;
+  /** Task assignments in this workspace dropped along with the membership. */
+  removedAssignments: number;
+}
 
 @Injectable()
 export class WorkspacesService {
@@ -105,12 +124,40 @@ export class WorkspacesService {
     return withRole(saved, membership.role);
   }
 
-  /** Memberships are removed by the ON DELETE CASCADE foreign key. */
-  async remove(membership: WorkspaceMembership): Promise<void> {
+  /**
+   * Boards, lists, tasks and memberships go with it through ON DELETE CASCADE.
+   * Counted first, in the same transaction, since the rows are gone afterwards.
+   */
+  async remove(membership: WorkspaceMembership): Promise<DeletedWorkspace> {
     if (membership.role !== WorkspaceRole.OWNER) {
       throw new ForbiddenException('Only an OWNER can delete a workspace');
     }
-    await this.workspaces.delete({ id: membership.workspaceId });
+    const workspaceId = membership.workspaceId;
+    return this.dataSource.transaction(async (manager) => {
+      await this.lockWorkspace(manager, workspaceId);
+      // Indicative counts: the lock blocks new boards, not new lists or tasks
+      // in existing boards, so they may undercount under heavy concurrency.
+      // See README, "Limitations connues".
+      // Sequential on purpose: a transaction holds a single connection.
+      const deletedBoards = await manager.countBy(Board, { workspaceId });
+      const deletedLists = await manager.countBy(List, {
+        board: { workspaceId },
+      });
+      const deletedTasks = await manager.countBy(Task, {
+        list: { board: { workspaceId } },
+      });
+      const deletedMembers = await manager.countBy(WorkspaceMember, {
+        workspaceId,
+      });
+      await manager.delete(Workspace, { id: workspaceId });
+      return {
+        id: workspaceId,
+        deletedBoards,
+        deletedLists,
+        deletedTasks,
+        deletedMembers,
+      };
+    });
   }
 
   listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
@@ -152,11 +199,16 @@ export class WorkspacesService {
     });
   }
 
-  async removeMember(
+  /**
+   * Removes the membership and, atomically, the user's task assignments in
+   * this workspace, so no one stays assigned (and reminded) where they no
+   * longer belong. This is the only path that ends a membership.
+   */
+  removeMember(
     actor: WorkspaceMembership,
     memberId: string,
-  ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+  ): Promise<RemovedMember> {
+    return this.dataSource.transaction(async (manager) => {
       await this.lockWorkspace(manager, actor.workspaceId);
       const target = await this.getMember(manager, actor.workspaceId, memberId);
 
@@ -165,8 +217,46 @@ export class WorkspacesService {
         await this.assertNotLastOwner(manager, target);
       }
 
+      const removedAssignments = await this.removeAssignmentsInWorkspace(
+        manager,
+        actor.workspaceId,
+        target.userId,
+      );
       await manager.delete(WorkspaceMember, { id: target.id });
+      return {
+        workspaceId: actor.workspaceId,
+        userId: target.userId,
+        removedAssignments,
+      };
     });
+  }
+
+  /**
+   * Deletes the user's assignments on tasks of THIS workspace only, walking
+   * task -> list -> board -> workspace in one statement. The user may still be
+   * assigned in other workspaces where they remain a member: a DELETE on
+   * userId alone would destroy those.
+   */
+  private async removeAssignmentsInWorkspace(
+    manager: EntityManager,
+    workspaceId: string,
+    userId: string,
+  ): Promise<number> {
+    const tasksInWorkspace = manager
+      .createQueryBuilder(Task, 'task')
+      .select('task.id')
+      .innerJoin('task.list', 'list')
+      .innerJoin('list.board', 'board')
+      .where('board.workspaceId = :workspaceId', { workspaceId });
+    const result = await manager
+      .createQueryBuilder()
+      .delete()
+      .from(TaskAssignee)
+      .where('"userId" = :userId', { userId })
+      .andWhere(`"taskId" IN (${tasksInWorkspace.getQuery()})`)
+      .setParameters(tasksInWorkspace.getParameters())
+      .execute();
+    return result.affected ?? 0;
   }
 
   private async getWorkspace(id: string): Promise<Workspace> {

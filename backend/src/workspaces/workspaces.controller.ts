@@ -3,8 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -23,6 +21,8 @@ import type { WorkspaceMember } from './entities/workspace-member.entity.js';
 import { WorkspaceGuard } from './guards/workspace.guard.js';
 import type { WorkspaceMembership } from './workspace-membership.js';
 import {
+  type DeletedWorkspace,
+  type RemovedMember,
   type WorkspaceWithRole,
   WorkspacesService,
 } from './workspaces.service.js';
@@ -64,10 +64,11 @@ export class WorkspacesController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(WorkspaceGuard)
   @WorkspaceRoles('OWNER')
-  remove(@CurrentMembership() membership: WorkspaceMembership): Promise<void> {
+  remove(
+    @CurrentMembership() membership: WorkspaceMembership,
+  ): Promise<DeletedWorkspace> {
     return this.workspacesService.remove(membership);
   }
 
@@ -91,13 +92,12 @@ export class WorkspacesController {
   }
 
   @Delete(':id/members/:memberId')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(WorkspaceGuard)
   @WorkspaceRoles('OWNER', 'ADMIN')
   removeMember(
     @CurrentMembership() membership: WorkspaceMembership,
     @Param('memberId', ParseUUIDPipe) memberId: string,
-  ): Promise<void> {
+  ): Promise<RemovedMember> {
     return this.workspacesService.removeMember(membership, memberId);
   }
 }

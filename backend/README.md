@@ -61,6 +61,28 @@ $ pnpm run test:cov
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
+## Limitations connues
+
+- **Suppression de compte utilisateur non exposée.** Une suppression directe en
+  base retire les adhésions par `CASCADE` et peut laisser un workspace sans
+  OWNER : la règle du dernier OWNER est appliquée au niveau service, pas au
+  niveau base. Le futur endpoint devra imposer un transfert de propriété ou la
+  suppression du workspace.
+- **`GET /workspaces/:workspaceId/boards/:boardId/full` en une requête.** Une
+  requête unique à jointures multiples (listes, tâches, assignés, utilisateurs)
+  produit une duplication de lignes proportionnelle au nombre d'assignés. Choix
+  assumé contre le N+1, adapté à l'échelle d'un board Kanban. Au-delà de
+  quelques centaines de tâches, scinder en deux requêtes recomposées en mémoire.
+- **Compteurs de `DELETE /workspaces/:id` indicatifs.** Les compteurs renvoyés
+  (`deletedBoards`, `deletedLists`, `deletedTasks`, `deletedMembers`) sont
+  indicatifs. Le verrou `FOR UPDATE` posé sur le workspace empêche la création
+  concurrente de boards, mais pas celle de listes ou de tâches dans un board
+  existant : sous forte concurrence, les chiffres peuvent être légèrement
+  sous-évalués. Ils servent à informer l'utilisateur de l'ampleur de la
+  suppression, pas de garantie transactionnelle. Verrouiller l'ensemble du
+  sous-arbre pour rendre ces compteurs exacts bloquerait des écritures
+  légitimes, arbitrage jugé défavorable.
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:

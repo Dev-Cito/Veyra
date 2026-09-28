@@ -4,7 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BoardsModule } from './boards/boards.module.js';
 import { buildDataSourceOptions } from './database/data-source.options.js';
+import { ListsModule } from './lists/lists.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 
 @Module({
@@ -17,6 +20,9 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     }),
     AuthModule,
     WorkspacesModule,
+    BoardsModule,
+    ListsModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

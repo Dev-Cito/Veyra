@@ -82,11 +82,118 @@ Content-Type: application/json
   "role": "ADMIN"
 }
 
+### ─── Boards (phase 2) ──────────────────────────────────────────────
+# Run these before 7 and 8, which remove your membership / the workspace.
+# position is always computed by the server; sending it returns 400.
+# Every DELETE returns 200 with a body describing what was removed.
+
+### Create a board (OWNER, ADMIN)
+# @name createBoard
+POST {{baseUrl}}/workspaces/{{workspaceId}}/boards
+Content-Type: application/json
+
+{
+  "name": "Roadmap",
+  "description": "Q4 delivery"
+}
+
+@boardId = {{createBoard.response.body.$.id}}
+
+### List boards (any member), by position
+GET {{baseUrl}}/workspaces/{{workspaceId}}/boards
+
+### Board detail (any member)
+GET {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}
+
+### Full Kanban view (any member): lists > tasks > assignees, one SQL query
+GET {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}/full
+
+### Update a board (OWNER, ADMIN). description: null clears it.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}
+Content-Type: application/json
+
+{
+  "name": "Roadmap 2026",
+  "description": null
+}
+
+### ─── Lists ────────────────────────────────────────────────────────────
+
+### Create a list (OWNER, ADMIN)
+# @name createList
+POST {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}/lists
+Content-Type: application/json
+
+{
+  "name": "To do"
+}
+
+@listId = {{createList.response.body.$.id}}
+
+### Rename a list (OWNER, ADMIN). boardId is rejected: moving is phase 3.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/lists/{{listId}}
+Content-Type: application/json
+
+{
+  "name": "Backlog"
+}
+
+### ─── Tasks ────────────────────────────────────────────────────────────
+
+### Create a task (any member). dueDate must not be in the past.
+# @name createTask
+POST {{baseUrl}}/workspaces/{{workspaceId}}/lists/{{listId}}/tasks
+Content-Type: application/json
+
+{
+  "title": "Write the API docs",
+  "description": "Cover the Kanban routes",
+  "dueDate": "2030-01-31T17:00:00.000Z",
+  "priority": "HIGH"
+}
+
+@taskId = {{createTask.response.body.$.id}}
+
+### Task detail, with assignees (any member)
+GET {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}
+
+### Update a task (any member). A past dueDate is allowed here; null clears it.
+# listId, position and reminderSent are rejected with 400.
+PATCH {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}
+Content-Type: application/json
+
+{
+  "priority": "LOW",
+  "dueDate": null
+}
+
+### Assign a user (any member). Must be an ACTIVE member (400), once (409).
+POST {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}/assignees
+Content-Type: application/json
+
+{
+  "userId": "{{login.response.body.$.id}}"
+}
+
+### Unassign a user (any member). 404 if not assigned. Returns { taskId, userId }.
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}/assignees/{{login.response.body.$.id}}
+
+### Delete a task (its creator, or an OWNER / ADMIN). Returns { id }.
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}/tasks/{{taskId}}
+
+### Delete a list (OWNER, ADMIN). Returns { id, deletedTasks }.
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}/lists/{{listId}}
+
+### Delete a board (OWNER only). Returns { id, deletedLists, deletedTasks }.
+DELETE {{baseUrl}}/workspaces/{{workspaceId}}/boards/{{boardId}}
+
 ### 7. Remove a member (OWNER, ADMIN)
-# On the last active OWNER this returns 409.
+# On the last active OWNER this returns 409. Also drops their task assignments
+# in this workspace. Returns { workspaceId, userId, removedAssignments }.
 DELETE {{baseUrl}}/workspaces/{{workspaceId}}/members/{{memberId}}
 
-### 8. Delete the workspace (OWNER only; memberships cascade)
+### 8. Delete the workspace (OWNER only; everything in it cascades)
+# Returns { id, deletedBoards, deletedLists, deletedTasks, deletedMembers }.
 DELETE {{baseUrl}}/workspaces/{{workspaceId}}
 
 ### Logout

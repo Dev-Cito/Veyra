@@ -1,4 +1,8 @@
 import type { DataSourceOptions } from 'typeorm';
+import { Board } from '../boards/board.entity.js';
+import { List } from '../lists/list.entity.js';
+import { TaskAssignee } from '../tasks/entities/task-assignee.entity.js';
+import { Task } from '../tasks/entities/task.entity.js';
 import { User } from '../users/user.entity.js';
 import { Workspace } from '../workspaces/entities/workspace.entity.js';
 import { WorkspaceMember } from '../workspaces/entities/workspace-member.entity.js';
@@ -27,7 +31,15 @@ export function buildDataSourceOptions(
     ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
     // gen_random_uuid() is built into Postgres 13+, no uuid-ossp needed.
     uuidExtension: 'pgcrypto',
-    entities: [User, Workspace, WorkspaceMember],
+    entities: [
+      User,
+      Workspace,
+      WorkspaceMember,
+      Board,
+      List,
+      Task,
+      TaskAssignee,
+    ],
     migrations,
     synchronize: false,
   };
