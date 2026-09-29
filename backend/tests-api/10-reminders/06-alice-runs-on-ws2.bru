@@ -1,0 +1,19 @@
+meta {
+  name: Alice déclenche sur WS2
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws2}}/reminders/run
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 403
+}

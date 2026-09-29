@@ -1,0 +1,30 @@
+meta {
+  name: Alice quitte, seule OWNER
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members/{{aliceMemberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 409
+}
+
+docs {
+  409 = CONFLIT D'ÉTAT, et c'est toute la différence avec le test 10.
+
+  Alice A LE DROIT de quitter un workspace. Ce qui l'en empêche ici, c'est
+  l'ÉTAT : elle est la dernière OWNER, et un workspace sans propriétaire
+  est un état corrompu.
+
+  Cette règle est appliquée sous verrou FOR UPDATE, pour que deux OWNER
+  qui partent simultanément ne passent pas tous les deux le contrôle.
+}

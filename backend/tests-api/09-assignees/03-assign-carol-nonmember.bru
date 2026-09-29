@@ -1,0 +1,29 @@
+meta {
+  name: Assigner Carol (non-membre)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/assignees
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "userId": "{{carolId}}"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  On n'assigne jamais un utilisateur extérieur au workspace.
+}

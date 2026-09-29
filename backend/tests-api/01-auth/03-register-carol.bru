@@ -1,0 +1,39 @@
+meta {
+  name: Register Carol
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "carol-{{runId}}@veyra.test",
+    "name": "Carol",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  const raw = res.getHeader('set-cookie');
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header) bru.setVar('carolCookie', header.split(';')[0]);
+  const b = res.getBody() || {};
+  bru.setVar('carolId', b.id || (b.user && b.user.id));
+}
+
+tests {
+  test("aucun passwordHash dans la réponse", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("passwordHash");
+  });
+}
+
+docs {
+  Limite : 5 inscriptions par minute et par IP. Cette collection en fait 3.
+  Relancer la collection deux fois dans la même minute produit un 429 sur
+  le troisième register — ce n'est pas un bug, attendre 60 secondes.
+}

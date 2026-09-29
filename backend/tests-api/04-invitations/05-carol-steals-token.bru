@@ -1,0 +1,37 @@
+meta {
+  name: Carol utilise le token de Bob
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+body:json {
+  {
+    "token": "{{bobInviteToken}}"
+  }
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  LE TEST LE PLUS IMPORTANT DE LA COLLECTION.
+
+  Il doit passer AVANT que Bob accepte : l'acceptation consomme le token.
+
+  Sans le contrôle de correspondance d'email, un token intercepté — email
+  transféré, boîte compromise — permettrait à n'importe quel compte de
+  rejoindre le workspace. Ce serait un contournement complet du RBAC.
+
+  Le token prouve la RÉCEPTION du message, pas l'IDENTITÉ du porteur.
+}

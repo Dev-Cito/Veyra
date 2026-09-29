@@ -1,0 +1,30 @@
+meta {
+  name: Invitation en rôle OWNER
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "email": "x-{{runId}}@veyra.test",
+    "role": "OWNER"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  On ne crée pas un propriétaire par invitation. La promotion en OWNER passe par PATCH members.
+}

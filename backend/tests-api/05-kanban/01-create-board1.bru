@@ -1,0 +1,31 @@
+meta {
+  name: Alice crée un board dans WS1
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": "Refonte site client",
+    "description": "Premier board"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('board1', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

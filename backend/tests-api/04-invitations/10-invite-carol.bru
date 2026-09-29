@@ -1,0 +1,36 @@
+meta {
+  name: Alice invite Carol
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "email": "carol-{{runId}}@veyra.test",
+    "role": "MEMBER"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('carolInviteToken', b.token);
+  bru.setVar('carolInviteId', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Carol N'ACCEPTERA PAS : elle doit rester non-membre de WS1 pour le test d'IDOR du dossier 06.
+}

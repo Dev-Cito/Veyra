@@ -1,0 +1,30 @@
+meta {
+  name: Bob (non-membre) lit WS1
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  À FAIRE MAINTENANT, pas plus tard.
+
+  Bob rejoint WS1 au dossier 04. Ce test devient alors impossible sans
+  créer un quatrième compte. C'est le premier endroit où l'ordre du plan
+  compte réellement.
+
+  403 et non 404 : la route /workspaces/:id existe et Bob est authentifié.
+  C'est WorkspaceGuard qui refuse, faute d'adhésion ACTIVE.
+}

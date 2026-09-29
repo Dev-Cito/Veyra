@@ -1,0 +1,40 @@
+meta {
+  name: Accept #1
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "token": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  }
+}
+
+assert {
+  res.status: eq 404
+}
+
+docs {
+  DERNIER DOSSIER DE LA COLLECTION, ET CE N'EST PAS NÉGOCIABLE.
+
+  Ces 11 appels brûlent le quota de l'IP pour une minute. Placés au
+  milieu du plan, tous les dossiers suivants échoueraient en 429 et tu
+  chercherais un bug qui n'existe pas.
+
+  Limite : 10 requêtes par minute et par IP sur /invitations/accept.
+  Les 10 premiers renvoient 404 (token inconnu), le onzième 429.
+
+  Le risque couvert n'est pas le brute-force du token — 256 bits
+  d'entropie le rendent impossible — mais la saturation : c'est la seule
+  route PUBLIQUE EN ÉCRITURE de l'API.
+}

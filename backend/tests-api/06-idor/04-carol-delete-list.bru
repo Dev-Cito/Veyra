@@ -1,0 +1,19 @@
+meta {
+  name: Carol → DELETE list1 via WS2
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws2}}/lists/{{list1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+assert {
+  res.status: eq 404
+}

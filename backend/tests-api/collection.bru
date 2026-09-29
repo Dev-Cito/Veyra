@@ -1,0 +1,7 @@
+script:pre-request {
+  // Identifiant unique par session, pour que les emails ne collisionnent pas
+  // d'une exécution à l'autre. Réinitialisé explicitement par 00-baseline.
+  if (!bru.getVar('runId')) {
+    bru.setVar('runId', Date.now().toString(36));
+  }
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Anonyme lit WS1
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+}
+
+docs {
+  401 et non 403 : la couche d'authentification passe avant celle d'autorisation.
+}

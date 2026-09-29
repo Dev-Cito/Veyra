@@ -1,0 +1,33 @@
+meta {
+  name: Register Alice
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "alice-{{runId}}@veyra.test",
+    "name": "Alice",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  const raw = res.getHeader('set-cookie');
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header) bru.setVar('aliceCookie', header.split(';')[0]);
+  const b = res.getBody() || {};
+  bru.setVar('aliceId', b.id || (b.user && b.user.id));
+}
+
+tests {
+  test("aucun passwordHash dans la réponse", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("passwordHash");
+  });
+}

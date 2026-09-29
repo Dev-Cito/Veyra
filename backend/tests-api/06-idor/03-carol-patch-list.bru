@@ -1,0 +1,25 @@
+meta {
+  name: Carol → PATCH list1 via WS2
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws2}}/lists/{{list1}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+body:json {
+  {
+    "name": "piraté"
+  }
+}
+
+assert {
+  res.status: eq 404
+}

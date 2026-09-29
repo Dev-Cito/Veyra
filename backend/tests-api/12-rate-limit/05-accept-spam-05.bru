@@ -1,0 +1,25 @@
+meta {
+  name: Accept #5
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "token": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  }
+}
+
+assert {
+  res.status: eq 404
+}

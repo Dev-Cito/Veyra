@@ -1,0 +1,31 @@
+meta {
+  name: {null, null} vers une liste non vide
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m1}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list2}}",
+    "previousTaskId": null,
+    "nextTaskId": null
+  }
+}
+
+assert {
+  res.status: eq 409
+}
+
+docs {
+  L'état du client est périmé : il croit la liste vide. On refuse plutôt que de placer au hasard.
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Bob (ADMIN) retire Alice (OWNER)
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members/{{aliceMemberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  Un ADMIN ne touche jamais à un OWNER.
+}

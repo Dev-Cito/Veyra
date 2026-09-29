@@ -1,0 +1,19 @@
+meta {
+  name: Alice lit WS1
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Révoquer l'invitation de Carol
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations/{{carolInviteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}

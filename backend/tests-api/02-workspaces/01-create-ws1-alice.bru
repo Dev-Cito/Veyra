@@ -1,0 +1,38 @@
+meta {
+  name: Alice crée WS1
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": "Agence Kigali {{runId}}"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('ws1', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Le créateur doit devenir WorkspaceMember OWNER / ACTIVE dans la MÊME
+  transaction. Contrôle en base :
+
+    docker compose exec db psql -U veyra -d veyra -c \
+      'SELECT "workspaceId", role, status FROM workspace_members;'
+}

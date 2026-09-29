@@ -1,0 +1,35 @@
+meta {
+  name: Tâche à échéance +12 h
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Échéance proche",
+    "dueDate": "{{due12h}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar('due12h', new Date(Date.now() + 12*3600*1000).toISOString());
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('dueTask', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

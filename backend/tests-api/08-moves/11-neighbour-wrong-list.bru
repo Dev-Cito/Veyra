@@ -1,0 +1,31 @@
+meta {
+  name: Voisin d'une autre liste
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list2}}",
+    "previousTaskId": "{{m1}}",
+    "nextTaskId": null
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  M1 est maintenant dans la liste 3, pas la liste 2 : il ne peut pas servir de voisin ici.
+}

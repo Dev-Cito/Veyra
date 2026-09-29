@@ -1,0 +1,26 @@
+meta {
+  name: dueDate en 1990
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Test",
+    "dueDate": "1990-01-01T00:00:00.000Z"
+  }
+}
+
+assert {
+  res.status: eq 400
+}

@@ -1,0 +1,37 @@
+meta {
+  name: Vers une liste d'un autre board
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list3}}",
+    "previousTaskId": "{{m1}}",
+    "nextTaskId": null
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Une liste d'un AUTRE BOARD du même workspace est une cible valide.
+  Seul le franchissement de workspace est interdit — et il est déjà
+  couvert par le dossier 06 (IDOR).
+
+  Version précédente de ce test : elle visait list1 avec {null, null},
+  ce qui est le cas du test 10 (liste non vide) et renvoyait donc 409
+  à juste titre. Erreur de spécification, pas d'implémentation.
+}

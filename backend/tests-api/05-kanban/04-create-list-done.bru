@@ -1,0 +1,30 @@
+meta {
+  name: Liste « Terminé »
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards/{{board1}}/lists
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": "Terminé"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('list3', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

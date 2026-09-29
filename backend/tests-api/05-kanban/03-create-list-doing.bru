@@ -1,0 +1,30 @@
+meta {
+  name: Liste « En cours »
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards/{{board1}}/lists
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": "En cours"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('list2', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

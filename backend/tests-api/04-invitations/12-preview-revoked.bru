@@ -1,0 +1,21 @@
+meta {
+  name: Preview d'un token révoqué
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/invitations/preview
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "{{carolInviteToken}}"
+  }
+}
+
+assert {
+  res.status: eq 404
+}

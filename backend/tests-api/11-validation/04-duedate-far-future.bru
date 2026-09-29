@@ -1,0 +1,32 @@
+meta {
+  name: dueDate en l'an 2200
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Test",
+    "dueDate": "2200-01-01T00:00:00.000Z"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Fenêtre GLISSANTE : now − 10 ans à now + 100 ans, calculée à la
+  validation. Des bornes absolues codées en dur seraient le défaut de
+  conception qui a produit Y2K et produira 2038.
+}

@@ -1,0 +1,34 @@
+meta {
+  name: Tâche avec échéance passée
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list1}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Déjà en retard",
+    "dueDate": "{{pastDate}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar('pastDate', new Date(Date.now() - 86400000).toISOString());
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Une échéance passée est refusée à la CRÉATION, mais autorisée en PATCH (on corrige une tâche en retard).
+}

@@ -1,0 +1,25 @@
+meta {
+  name: GET /auth/me (Alice)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("aucun passwordHash dans la réponse", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("passwordHash");
+  });
+}

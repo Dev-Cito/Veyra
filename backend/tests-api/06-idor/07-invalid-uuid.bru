@@ -1,0 +1,23 @@
+meta {
+  name: UUID invalide dans l'URL
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/workspaces/pas-un-uuid/boards
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  400 et non 500 : sans validation, Postgres renverrait une erreur de type.
+}

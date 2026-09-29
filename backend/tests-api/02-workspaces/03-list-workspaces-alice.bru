@@ -1,0 +1,27 @@
+meta {
+  name: Alice liste ses workspaces
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/workspaces
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("WS1 est présent, WS2 ne l'est pas", function() {
+    const ids = (res.getBody() || []).map(w => w.id);
+    expect(ids).to.include(bru.getVar('ws1'));
+    expect(ids).to.not.include(bru.getVar('ws2'));
+  });
+}

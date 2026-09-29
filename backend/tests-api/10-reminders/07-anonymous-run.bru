@@ -1,0 +1,15 @@
+meta {
+  name: Anonyme déclenche
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/reminders/run
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+}

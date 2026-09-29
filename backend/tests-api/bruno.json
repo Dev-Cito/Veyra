@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "name": "Veyra API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git",
+    "scripts"
+  ],
+  "size": 0.043121337890625,
+  "filesCount": 124,
+  "presets": {
+    "requestType": "http",
+    "requestUrl": "http://localhost:3001"
+  }
+}

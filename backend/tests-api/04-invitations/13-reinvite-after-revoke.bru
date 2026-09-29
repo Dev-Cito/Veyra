@@ -1,0 +1,36 @@
+meta {
+  name: Réinviter Carol après révocation
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "email": "carol-{{runId}}@veyra.test",
+    "role": "MEMBER"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Valide l'index unique PARTIEL :
+
+    CREATE UNIQUE INDEX ... ON invitations (workspaceId, email)
+    WHERE acceptedAt IS NULL AND revokedAt IS NULL
+
+  Deux invitations EN ATTENTE pour le même email sont interdites (test 08),
+  mais une réinvitation après révocation doit passer.
+}

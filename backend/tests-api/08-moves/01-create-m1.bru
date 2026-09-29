@@ -1,0 +1,34 @@
+meta {
+  name: Créer M1
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "M1"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('m1', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Le dossier crée ses propres tâches, dans la liste 2, pour ne dépendre d'aucun dossier précédent.
+}

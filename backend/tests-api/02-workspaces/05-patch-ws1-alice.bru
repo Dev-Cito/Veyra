@@ -1,0 +1,31 @@
+meta {
+  name: Alice renomme WS1
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": "Agence Kigali renommée"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("le slug ne change pas au renommage", function() {
+    expect(res.getBody().slug).to.include("agence-kigali");
+  });
+}

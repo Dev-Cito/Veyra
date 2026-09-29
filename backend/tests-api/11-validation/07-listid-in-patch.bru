@@ -1,0 +1,29 @@
+meta {
+  name: listId dans un PATCH de tâche
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "listId": "{{list3}}"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Changer une tâche de liste est une opération de DÉPLACEMENT, avec son propre endpoint et ses verrous.
+}

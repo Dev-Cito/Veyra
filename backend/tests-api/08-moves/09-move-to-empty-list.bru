@@ -1,0 +1,36 @@
+meta {
+  name: M1 vers la liste vide
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m1}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list3}}",
+    "previousTaskId": null,
+    "nextTaskId": null
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Déplacement INTER-LISTES : deux lignes parentes à verrouiller.
+
+  Les verrous sont acquis dans l'ordre croissant des UUID, quel que soit
+  le sens du déplacement. Sans cette parade, un A→B et un B→A simultanés
+  produiraient un deadlock que Postgres résoudrait en tuant l'une des
+  deux transactions.
+}

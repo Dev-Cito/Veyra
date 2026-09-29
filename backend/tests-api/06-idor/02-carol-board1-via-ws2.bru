@@ -1,0 +1,33 @@
+meta {
+  name: Carol → board1 via l'URL de WS2
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws2}}/boards/{{board1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+assert {
+  res.status: eq 404
+}
+
+docs {
+  LE VRAI TEST D'IDOR.
+
+  Carol EST membre de WS2, donc WorkspaceGuard la laisse passer
+  légitimement. C'est WorkspaceScopeService qui doit l'arrêter : board1
+  appartient à WS1, pas à WS2.
+
+  404 et non 403 : un 403 confirmerait à un attaquant que l'UUID deviné
+  existe ailleurs. Un 404 ne dit rien.
+
+  Si cette requête renvoie 200, la faille d'accès direct à objet est
+  ouverte et tout le cloisonnement du projet est illusoire.
+}

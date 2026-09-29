@@ -1,0 +1,34 @@
+meta {
+  name: Bob crée une tâche
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list1}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+body:json {
+  {
+    "title": "Tâche de Bob"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('bobTask', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Un MEMBER ne gère pas la structure du board, mais il travaille : créer une tâche est autorisé.
+}

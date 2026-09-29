@@ -1,0 +1,32 @@
+meta {
+  name: Déplacement no-op
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list2}}",
+    "previousTaskId": "{{m1}}",
+    "nextTaskId": "{{m3}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.reindexed: eq false
+}
+
+docs {
+  M2 est déjà strictement dans cet écart : aucune écriture, et updatedAt ne doit pas bouger.
+}

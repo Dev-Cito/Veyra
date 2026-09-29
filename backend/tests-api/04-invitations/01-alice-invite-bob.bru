@@ -1,0 +1,41 @@
+meta {
+  name: Alice invite Bob (MEMBER)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "email": "bob-{{runId}}@veyra.test",
+    "role": "MEMBER"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('bobInviteToken', b.token);
+  bru.setVar('bobInviteId', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+tests {
+  test("le token brut est renvoyé une fois", function() {
+    expect(res.getBody().token).to.be.a('string');
+  });
+  test("le tokenHash n'est jamais exposé", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("tokenHash");
+  });
+}

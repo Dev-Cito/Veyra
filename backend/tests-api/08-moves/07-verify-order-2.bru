@@ -1,0 +1,22 @@
+meta {
+  name: Vérifier l'ordre : M1, M2, M3
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards/{{board1}}/full
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+tests {
+  test("ordre M1, M2, M3", function() {
+    const list = res.getBody().lists.find(l => l.id === bru.getVar('list2'));
+    expect(list.tasks.map(t => t.title)).to.eql(["M1", "M2", "M3"]);
+  });
+}

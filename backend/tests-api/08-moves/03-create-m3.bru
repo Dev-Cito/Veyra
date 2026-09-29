@@ -1,0 +1,30 @@
+meta {
+  name: Créer M3
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "M3"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('m3', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

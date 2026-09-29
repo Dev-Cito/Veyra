@@ -1,0 +1,33 @@
+meta {
+  name: Tâche avec position imposée
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list1}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Position forcée",
+    "position": 1500
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  position n'est JAMAIS accepté en entrée : le serveur en est l'unique
+  autorité. Le ValidationPipe global est en forbidNonWhitelisted, donc
+  un champ inconnu est rejeté en 400 plutôt qu'ignoré silencieusement —
+  le client sait que sa requête était fausse.
+}

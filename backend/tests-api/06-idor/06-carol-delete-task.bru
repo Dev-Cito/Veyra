@@ -1,0 +1,19 @@
+meta {
+  name: Carol → DELETE task1 via WS2
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws2}}/tasks/{{task1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+assert {
+  res.status: eq 404
+}

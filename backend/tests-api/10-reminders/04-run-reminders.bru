@@ -1,0 +1,38 @@
+meta {
+  name: Déclencher les rappels
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/reminders/run
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("au moins une tâche traitée", function() {
+    expect(res.getBody().tasksProcessed).to.be.at.least(1);
+  });
+  test("aucun email envoyé, MAIL_ENABLED est false", function() {
+    expect(res.getBody().emailsSent).to.eql(0);
+  });
+}
+
+docs {
+  emailsSent vaut 0 en local et c'est NORMAL : sans configuration SMTP,
+  MailService logue ce qu'il aurait envoyé au lieu de l'envoyer. Un
+  backend qui refuserait de démarrer faute de credentials email serait
+  un backend cassé.
+
+  Cette route existe surtout à cause du free tier Render : le service
+  s'endort et le cron horaire ne tourne pas pendant le sommeil.
+}

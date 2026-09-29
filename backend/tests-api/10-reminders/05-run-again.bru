@@ -1,0 +1,29 @@
+meta {
+  name: Relancer les rappels
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/reminders/run
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.tasksProcessed: eq 0
+}
+
+docs {
+  Le flag reminderSent a fait son travail.
+
+  Rappel de l'ordre imposé côté serveur : marquer, COMMIT, PUIS envoyer.
+  Un email déjà parti ne peut pas être annulé par un ROLLBACK — donc tout
+  ordre plaçant l'envoi avant le commit accepte structurellement le
+  doublon. On préfère perdre un rappel qu'en envoyer deux.
+}

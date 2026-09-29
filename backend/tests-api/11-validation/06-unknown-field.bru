@@ -1,0 +1,26 @@
+meta {
+  name: Champ inconnu
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "OK",
+    "champInconnu": "x"
+  }
+}
+
+assert {
+  res.status: eq 400
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Bob (ADMIN) supprime la tâche d'Alice
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{task3}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Même requête qu'au test 05, même utilisateur, résultat différent : seul le rôle a changé.
+}

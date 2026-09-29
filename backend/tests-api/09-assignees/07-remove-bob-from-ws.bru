@@ -1,0 +1,38 @@
+meta {
+  name: Alice retire Bob du workspace
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members/{{bobMemberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("les assignations de Bob sont nettoyées", function() {
+    expect(res.getBody().removedAssignments).to.be.at.least(1);
+  });
+}
+
+docs {
+  Le nettoyage doit être SCOPÉ À CE WORKSPACE.
+
+  Un DELETE global sur userId détruirait les assignations de Bob dans tous
+  les autres workspaces où il est encore membre. Contrôle en base :
+
+    docker compose exec db psql -U veyra -d veyra -c \
+      'SELECT * FROM task_assignees;'
+
+  Sans ce nettoyage, le cron du dossier 10 enverrait des rappels à
+  quelqu'un qui n'a plus accès au workspace.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Créer M2
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "M2"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('m2', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

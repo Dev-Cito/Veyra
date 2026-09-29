@@ -1,0 +1,29 @@
+meta {
+  name: Alice modifie son propre rôle
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members/{{aliceMemberId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "role": "MEMBER"
+  }
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  403 = PERMISSION. Personne ne modifie son propre rôle, quel qu'il soit.
+}

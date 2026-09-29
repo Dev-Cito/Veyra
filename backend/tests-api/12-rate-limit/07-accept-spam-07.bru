@@ -1,0 +1,27 @@
+meta {
+  name: Accept #7
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "token": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  }
+}
+
+tests {
+  test("404 tant que le quota n'est pas atteint, 429 ensuite", function() {
+    expect([404, 429]).to.include(res.getStatus());
+  });
+}

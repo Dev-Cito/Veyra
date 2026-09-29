@@ -1,0 +1,19 @@
+meta {
+  name: Désassigner Bob
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/assignees/{{bobId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}

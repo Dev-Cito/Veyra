@@ -1,0 +1,27 @@
+meta {
+  name: Lister les membres de WS1
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+script:post-response {
+  const members = res.getBody() || [];
+  const alice = members.find(m => m.role === 'OWNER');
+  const bob = members.find(m => m.role !== 'OWNER');
+  if (alice) bru.setVar('aliceMemberId', alice.id);
+  if (bob) bru.setVar('bobMemberId', bob.id);
+}
+
+assert {
+  res.status: eq 200
+}

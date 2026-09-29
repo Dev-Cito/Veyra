@@ -1,0 +1,31 @@
+meta {
+  name: Tâche 3
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list1}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Tâche 3",
+    "priority": "MEDIUM"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('task3', b.id);
+}
+
+assert {
+  res.status: eq 201
+}

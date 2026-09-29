@@ -1,0 +1,19 @@
+meta {
+  name: Bob lit les membres de WS1
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+assert {
+  res.status: eq 403
+}

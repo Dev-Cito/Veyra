@@ -1,0 +1,34 @@
+meta {
+  name: Carol crée un board dans WS2
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws2}}/boards
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+body:json {
+  {
+    "name": "Board de Carol"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  bru.setVar('board2', b.id);
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Cible du test d'IDOR : Carol est légitimement membre de WS2.
+}

@@ -1,0 +1,33 @@
+meta {
+  name: name: null en PATCH
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "name": null
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Ce cas renvoyait une 500 : @IsOptional() laissait passer null jusqu'à
+  une colonne NOT NULL, et l'erreur Postgres remontait au client.
+
+  Corrigé par @IsOptionalNonNull(). Aucune entrée utilisateur ne doit
+  jamais produire de 500.
+}

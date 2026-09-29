@@ -1,0 +1,32 @@
+meta {
+  name: Logout Alice
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  On vérifie le 204 et rien de plus.
+
+  Le JWT est STATELESS : logout ne fait qu'émettre un Set-Cookie qui vide
+  le cookie côté navigateur. Le serveur ne tient aucune liste de tokens
+  révoqués. Comme cette collection envoie le cookie explicitement depuis
+  une variable, le token capturé reste valide après le logout.
+
+  Ce n'est donc PAS un bug si /auth/me répond encore 200 ensuite. Pour
+  une vraie invalidation il faudrait une liste de révocation côté serveur
+  — hors périmètre, et inutile pour des tokens de courte durée.
+}

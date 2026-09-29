@@ -1,0 +1,30 @@
+meta {
+  name: Réordonner une liste
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list3}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "previousListId": null,
+    "nextListId": "{{list1}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Réordonner les listes est réservé aux OWNER et ADMIN : c'est de la structure, pas du travail quotidien.
+}

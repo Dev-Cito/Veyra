@@ -1,0 +1,23 @@
+meta {
+  name: Bob supprime la tâche d'Alice
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{task3}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  Suppression d'une tâche : réservée au créateur, aux OWNER et aux ADMIN.
+}

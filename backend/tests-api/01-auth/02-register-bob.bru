@@ -1,0 +1,33 @@
+meta {
+  name: Register Bob
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "bob-{{runId}}@veyra.test",
+    "name": "Bob",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  const raw = res.getHeader('set-cookie');
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header) bru.setVar('bobCookie', header.split(';')[0]);
+  const b = res.getBody() || {};
+  bru.setVar('bobId', b.id || (b.user && b.user.id));
+}
+
+tests {
+  test("aucun passwordHash dans la réponse", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("passwordHash");
+  });
+}

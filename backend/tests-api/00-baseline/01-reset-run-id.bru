@@ -1,0 +1,30 @@
+meta {
+  name: Réinitialiser le runId
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/auth/me
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  bru.setVar('runId', Date.now().toString(36));
+}
+
+assert {
+  res.status: eq 401
+}
+
+docs {
+  Premier appel de la collection, et volontairement un échec.
+
+  Deux rôles :
+  1. Réinitialiser runId pour que les emails de cette exécution soient
+     uniques (sinon un second `bru run` échouerait en 409 sur register).
+  2. Vérifier que JwtAuthGuard refuse une requête sans cookie. Si cet
+     appel renvoie 200, tout le reste du plan est invalide et il ne sert
+     à rien de continuer.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Bob accepte
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+body:json {
+  {
+    "token": "{{bobInviteToken}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

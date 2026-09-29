@@ -1,0 +1,32 @@
+meta {
+  name: M3 en tête
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m3}}/move
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "targetListId": "{{list2}}",
+    "previousTaskId": null,
+    "nextTaskId": "{{m1}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.reindexed: eq false
+}
+
+docs {
+  Le client n'envoie JAMAIS de position, seulement ses voisins. Le serveur relit leurs positions réelles et calcule.
+}

@@ -1,0 +1,34 @@
+meta {
+  name: Octet NUL dans un titre
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/lists/{{list2}}/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "title": "Avant\u0000Après"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Le cas le plus grave trouvé sur ce projet, et ce n'était pas un problème
+  de validation mais une FAILLE D'AUTHENTIFICATION.
+
+  bcrypt tronque au premier octet NUL : "motdepasse\u0000nimportequoi"
+  se hache exactement comme "motdepasse". @NoNullBytes() est donc appliqué
+  sur les 20 champs texte, email et mot de passe inclus.
+}

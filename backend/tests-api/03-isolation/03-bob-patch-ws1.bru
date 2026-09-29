@@ -1,0 +1,25 @@
+meta {
+  name: Bob renomme WS1
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+body:json {
+  {
+    "name": "piraté"
+  }
+}
+
+assert {
+  res.status: eq 403
+}

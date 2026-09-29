@@ -1,0 +1,25 @@
+meta {
+  name: Lister les invitations en attente
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/invitations
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("aucun tokenHash dans la liste", function() {
+    expect(JSON.stringify(res.getBody())).to.not.include("tokenHash");
+  });
+}

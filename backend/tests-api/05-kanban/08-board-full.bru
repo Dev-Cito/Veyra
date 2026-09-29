@@ -1,0 +1,40 @@
+meta {
+  name: GET /boards/:id/full
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards/{{board1}}/full
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("3 listes triées par position", function() {
+    const lists = res.getBody().lists;
+    expect(lists).to.have.lengthOf(3);
+    expect(lists.map(l => l.position)).to.eql([1000, 2000, 3000]);
+  });
+  test("3 tâches dans la première liste, positions espacées de 1000", function() {
+    const tasks = res.getBody().lists[0].tasks;
+    expect(tasks).to.have.lengthOf(3);
+    expect(tasks.map(t => t.position)).to.eql([1000, 2000, 3000]);
+  });
+}
+
+docs {
+  Vue Kanban complète en UNE requête. Activer les logs SQL de TypeORM et
+  vérifier qu'il n'y a pas de N+1 : une seule requête avec jointures.
+
+  La réponse est reconstruite depuis un quasi-produit cartésien (une tâche
+  à 3 assignés génère 3 lignes). Choix assumé contre le N+1.
+}

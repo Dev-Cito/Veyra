@@ -1,0 +1,29 @@
+meta {
+  name: Bob accepte une seconde fois
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{bobCookie}}
+}
+
+body:json {
+  {
+    "token": "{{bobInviteToken}}"
+  }
+}
+
+assert {
+  res.status: eq 404
+}
+
+docs {
+  404 et non 409 : une invitation consommée est invalide, et on ne confirme pas qu'elle a existé.
+}

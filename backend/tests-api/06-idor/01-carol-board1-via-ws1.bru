@@ -1,0 +1,24 @@
+meta {
+  name: Carol → board1 via l'URL de WS1
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{ws1}}/boards/{{board1}}
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: {{carolCookie}}
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  Couche qui répond : WorkspaceGuard.
+  Carol n'est pas membre de WS1, elle est arrêtée à la porte.
+}

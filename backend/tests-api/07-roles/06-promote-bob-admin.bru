@@ -1,0 +1,25 @@
+meta {
+  name: Alice promeut Bob ADMIN
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/workspaces/{{ws1}}/members/{{bobMemberId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "role": "ADMIN"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

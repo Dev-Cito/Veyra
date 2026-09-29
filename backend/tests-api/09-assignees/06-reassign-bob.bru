@@ -1,0 +1,25 @@
+meta {
+  name: Réassigner Bob
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/workspaces/{{ws1}}/tasks/{{m2}}/assignees
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: {{aliceCookie}}
+}
+
+body:json {
+  {
+    "userId": "{{bobId}}"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
