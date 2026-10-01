@@ -19,7 +19,7 @@ export function useCreateBoard(workspaceId: string) {
   return useMutation({
     mutationFn: (body: { name: string; description?: string }) =>
       api.boards.create(workspaceId, body),
-    meta: { handles: [400] },
+    meta: { handles: [400], context: "createBoard" },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: boardKeys.list(workspaceId) }),
   });

@@ -1,9 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useCreateBoard } from "@/hooks/use-boards";
 import { isApiError } from "@/lib/api";
 import { FieldError } from "./primitives";
+import { SubmitButton } from "@/components/app/submit-button";
 
 export function CreateBoardDialog({
   workspaceId,
@@ -57,7 +56,7 @@ export function CreateBoardDialog({
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form method="post" onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Créer un tableau</DialogTitle>
             <DialogDescription>
@@ -93,10 +92,9 @@ export function CreateBoardDialog({
             <FieldError id="board-description-error" messages={errors.description} />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            <SubmitButton pending={create.isPending} pendingLabel="Création…">
               Créer le tableau
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

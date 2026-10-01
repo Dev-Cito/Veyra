@@ -1,37 +1,42 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, type FormEvent, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMe } from "@/hooks/use-auth";
+import { meKey, useMe } from "@/hooks/use-auth";
 import type { FieldErrors } from "@/lib/api";
 import { pendingInvitation } from "@/lib/pending-invitation";
 import { resetLoginRedirect } from "@/lib/session";
 import { Banner, FieldError } from "./primitives";
+import { SubmitButton } from "@/components/app/submit-button";
 
-/** Where to go once signed in: back to a pending invitation, or home. */
+/**
+ * Where to go once signed in: back to /invite only if /invite itself handed
+ * a token off for this detour; otherwise home. /invite then consumes it.
+ */
 export function useAfterAuth() {
   const router = useRouter();
   return useCallback(() => {
-    if (pendingInvitation.get()) {
-      pendingInvitation.requestAcceptance();
-      router.replace("/invite");
-    } else {
-      router.replace("/w");
-    }
+    router.replace(pendingInvitation.isWaiting() ? "/invite" : "/w");
   }, [router]);
 }
 
 /** Already signed in: no reason to stay on /login or /register. */
 export function useRedirectIfSignedIn() {
+  const queryClient = useQueryClient();
   const me = useMe({ anonymous: true });
   const afterAuth = useAfterAuth();
-  // Arrived: the redirect to /login is over, a later 401 may redirect again.
-  useEffect(() => resetLoginRedirect(), []);
+  useEffect(() => {
+    // Arrived: the redirect to /login is over, a later 401 may redirect again.
+    resetLoginRedirect();
+    // Drop the previous session's data now, not when the 401 arrived: here no
+    // protected query is mounted, so nothing refetches (and nothing loops).
+    // `me` is kept: it already says "signed out" (or the user, if still valid).
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== meKey[0] });
+  }, [queryClient]);
   useEffect(() => {
     if (me.data) {
       afterAuth();
@@ -80,13 +85,12 @@ export function AuthForm({
     onSubmit(new FormData(event.currentTarget));
   };
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form method="post" onSubmit={handleSubmit} className="flex flex-col gap-4">
       {banner && <Banner>{banner}</Banner>}
       {children}
-      <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-        {submitting && <Loader2 className="animate-spin" aria-hidden="true" />}
-        {submitting ? submittingLabel : submitLabel}
-      </Button>
+      <SubmitButton size="lg" className="w-full" pending={submitting} pendingLabel={submittingLabel}>
+        {submitLabel}
+      </SubmitButton>
     </form>
   );
 }

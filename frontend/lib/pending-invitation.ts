@@ -1,11 +1,17 @@
 /**
- * Keeps an invitation token across the sign-up / sign-in detour, in this tab
- * only. The token arrives once in /invite?token=…; it is moved here and the
- * address bar is cleaned, so it travels through no other URL.
+ * Carries an invitation token across the sign-up / sign-in detour, in this
+ * tab only, and nothing more.
+ *
+ * Single-use and owned by the invitation flow:
+ * - written ONLY by /invite, when the user chooses to create an account or to
+ *   sign in in order to accept;
+ * - erased as soon as /invite reads it back, before any acceptance attempt,
+ *   and when /invite unmounts without handing it off.
+ * So a link opened then abandoned leaves nothing behind: a later, ordinary
+ * sign-in goes to /w, not to /invite.
  */
 
 const TOKEN_KEY = "veyra.invitation";
-const ACCEPT_KEY = "veyra.invitation.accept";
 
 function storage(): Storage | null {
   try {
@@ -16,42 +22,33 @@ function storage(): Storage | null {
 }
 
 export const pendingInvitation = {
-  get(): string | null {
+  /** /invite only: the user is leaving to sign in or up, to come back and accept. */
+  handOff(token: string) {
+    try {
+      storage()?.setItem(TOKEN_KEY, token);
+    } catch {
+      // Without storage the detour cannot resume; the email link still works.
+    }
+  },
+  /** Is an acceptance waiting? Does not consume it (see /invite for that). */
+  isWaiting(): boolean {
+    try {
+      return Boolean(storage()?.getItem(TOKEN_KEY));
+    } catch {
+      return false;
+    }
+  },
+  /** Reads without erasing: /invite erases it right after, in an effect. */
+  peek(): string | null {
     try {
       return storage()?.getItem(TOKEN_KEY) ?? null;
     } catch {
       return null;
     }
   },
-  set(token: string) {
-    try {
-      storage()?.setItem(TOKEN_KEY, token);
-    } catch {
-      // Without storage the flow still works on this page, just not across a detour.
-    }
-  },
-  /** Ask /invite to accept as soon as the user is signed in. */
-  requestAcceptance() {
-    try {
-      storage()?.setItem(ACCEPT_KEY, "1");
-    } catch {
-      // Same as above.
-    }
-  },
-  /** Reads and clears the acceptance request. */
-  takeAcceptanceRequest(): boolean {
-    try {
-      const requested = storage()?.getItem(ACCEPT_KEY) === "1";
-      storage()?.removeItem(ACCEPT_KEY);
-      return requested;
-    } catch {
-      return false;
-    }
-  },
   clear() {
     try {
       storage()?.removeItem(TOKEN_KEY);
-      storage()?.removeItem(ACCEPT_KEY);
     } catch {
       // Nothing to clear.
     }

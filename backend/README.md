@@ -63,13 +63,14 @@ When you're ready to deploy your NestJS application to production, there are som
 
 ## Invitations
 
-Le lien envoyé par email (phase 5) pointera vers le front :
-`https://<front>/invite?token=...`. La page lit le token dans son URL puis le
-**poste** au backend (`POST /invitations/preview`, puis
-`POST /invitations/accept` une fois connecté). Le token reste donc visible dans
-l'URL du navigateur, mais n'apparaît plus dans les chemins d'URL reçus par le
-serveur, ni dans les logs d'accès de Render et des proxys. Le front doit éviter
-de charger des ressources tierces sur cette page (en-tête `Referer`).
+Le lien envoyé par email pointe vers le front, avec le token dans le
+**fragment** : `https://<front>/invite#token=...`. Un navigateur n'envoie
+jamais le fragment au serveur : le token n'apparaît donc ni dans les logs du
+serveur du front (Next, Vercel), ni dans ceux de Render ou des proxys. La page
+lit le fragment, nettoie aussitôt l'URL et l'historique, puis **poste** le token
+au backend (`POST /invitations/preview`, puis `POST /invitations/accept` une
+fois connecté). Les anciens liens en `?token=` restent acceptés en repli ; le
+serveur du front a vu ceux-là, mais l'URL est nettoyée dès la lecture.
 
 ## Emails et rappels
 
@@ -88,7 +89,7 @@ valide et renvoie `emailSent: false`.
 | `SMTP_SECURE` | `true` pour TLS implicite (souvent 465), sinon STARTTLS |
 | `SMTP_USER`, `SMTP_PASSWORD` | Identifiants, les deux ou aucun |
 | `MAIL_FROM` | Adresse d'expédition (requise si activé) |
-| `FRONTEND_URL` | Base des liens (`/invite?token=…`, `/boards/:id`), requise si activé |
+| `FRONTEND_URL` | Base des liens (`/invite#token=…`, `/boards/:id`), requise si activé |
 
 Le rappel d'échéance tourne toutes les heures : chaque tâche dont la
 `dueDate` tombe dans les 24 heures reçoit un seul rappel, envoyé à ses
@@ -159,6 +160,28 @@ marquées avant l'envoi). Un OWNER peut déclencher la passe pour son workspace 
   attend l'envoi pour renseigner `emailSent` (après le COMMIT, jamais dedans).
   Un SMTP lent ralentit donc cette requête, dans la limite des timeouts
   configurés (10 s de connexion, 20 s de socket).
+
+- **Cookie tiers et Safari.** Avec le front et l'API sur deux domaines
+  distincts (Vercel et Render), le cookie de session est un cookie tiers.
+  Safari le bloque par défaut : la connexion y sera impossible. Deux issues :
+  héberger les deux sous un même domaine parent (`app.` et `api.` d'un même
+  nom), ce qui rend le cookie first-party et permet `SameSite=Lax` ; ou faire
+  passer les appels par un rewrite Next, au prix d'un saut réseau
+  supplémentaire. À trancher au déploiement. Les attributs du cookie suivent le
+  schéma de `FRONTEND_URL` (https : `Secure` + `SameSite=None` ; http : `Lax`),
+  et la politique retenue est loguée au démarrage (`[Auth] Session cookie: …`).
+- **CSRF.** Avec `SameSite=None`, une requête POST sans corps peut être
+  déclenchée depuis un autre site : CORS empêche de lire la réponse, pas
+  d'exécuter la requête. `POST /auth/logout` et
+  `POST /workspaces/:id/reminders/run` sont concernés. Un hébergement sous
+  domaine commun ramène `SameSite=Lax` et supprime le problème sans protection
+  CSRF dédiée.
+- **`trust proxy = 1`** suppose exactement un proxy devant l'application. Sans
+  proxy (en développement), un client peut forger `X-Forwarded-For` et
+  contourner le rate limiting — ce que la collection Bruno exploite
+  volontairement pour simuler des clients distincts. Avec deux proxys, par
+  exemple un CDN devant Render, tous les utilisateurs partageraient la même
+  limite. À revérifier au déploiement.
 
 ## Resources
 

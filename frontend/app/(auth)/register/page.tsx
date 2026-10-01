@@ -11,13 +11,16 @@ import {
 } from "@/components/app/auth-form";
 import { useRegister } from "@/hooks/use-auth";
 import { isApiError } from "@/lib/api";
+import { errorMessage, fieldErrorMessages } from "@/lib/error-messages";
 
 export default function RegisterPage() {
   // Also takes over after a successful sign-up: useRegister stores the user.
   useRedirectIfSignedIn();
   const router = useRouter();
   const register = useRegister();
-  const fieldErrors = isApiError(register.error, 400) ? register.error.fieldErrors : {};
+  const fieldErrors = isApiError(register.error, 400)
+    ? fieldErrorMessages(register.error.fieldErrors)
+    : {};
 
   return (
     <AuthShell
@@ -43,7 +46,7 @@ export default function RegisterPage() {
               // 409: the email already has an account. Say so, and offer the way out.
               onError: (error) => {
                 if (isApiError(error, 409)) {
-                  toast.error(error.message, {
+                  toast.error(errorMessage(error, "register"), {
                     action: { label: "Se connecter", onClick: () => router.push("/login") },
                   });
                 }

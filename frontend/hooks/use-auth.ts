@@ -46,7 +46,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: api.auth.login,
     // 401 (bad credentials) and 400 are shown in the form.
-    meta: { handles: [400, 401], allowAnonymous: true },
+    meta: { handles: [400, 401], allowAnonymous: true, context: "login" },
     onSuccess: (user) => startSession(queryClient, user),
   });
 }
@@ -55,7 +55,7 @@ export function useRegister() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.auth.register,
-    meta: { handles: [400, 409], allowAnonymous: true },
+    meta: { handles: [400, 409], allowAnonymous: true, context: "register" },
     onSuccess: (user) => startSession(queryClient, user),
   });
 }
@@ -64,7 +64,7 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.auth.logout,
-    meta: { allowAnonymous: true },
+    meta: { allowAnonymous: true, context: "logout" },
     onSettled: () => queryClient.clear(),
   });
 }

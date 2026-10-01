@@ -8,7 +8,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { CookieOptions, Response } from 'express';
+import type { Response } from 'express';
 import { RATE_LIMITS, RateLimit } from '../common/rate-limits.js';
 import type { User } from '../users/user.entity.js';
 import { AUTH_COOKIE, JWT_EXPIRES_IN_SECONDS } from './auth.constants.js';
@@ -17,18 +17,7 @@ import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
-
-// In production the frontend and API live on different Render domains, so the
-// cookie must be cross-site (SameSite=None requires Secure).
-function cookieOptions(): CookieOptions {
-  const isProd = process.env.NODE_ENV === 'production';
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    path: '/',
-  };
-}
+import { sessionCookieOptions } from './session-cookie.js';
 
 @Controller('auth')
 export class AuthController {
@@ -42,7 +31,7 @@ export class AuthController {
   ): Promise<User> {
     const { user, token } = await this.authService.register(dto);
     res.cookie(AUTH_COOKIE, token, {
-      ...cookieOptions(),
+      ...sessionCookieOptions(),
       maxAge: JWT_EXPIRES_IN_SECONDS * 1000,
     });
     return user;
@@ -57,7 +46,7 @@ export class AuthController {
   ): Promise<User> {
     const { user, token } = await this.authService.login(dto);
     res.cookie(AUTH_COOKIE, token, {
-      ...cookieOptions(),
+      ...sessionCookieOptions(),
       maxAge: JWT_EXPIRES_IN_SECONDS * 1000,
     });
     return user;
@@ -66,7 +55,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
-    res.clearCookie(AUTH_COOKIE, cookieOptions());
+    res.clearCookie(AUTH_COOKIE, sessionCookieOptions());
   }
 
   @Get('me')

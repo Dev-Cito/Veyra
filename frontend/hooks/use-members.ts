@@ -21,6 +21,8 @@ export function useUpdateMemberRole(workspaceId: string) {
   return useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: Role }) =>
       api.members.updateRole(workspaceId, memberId, { role }),
+    // 409 (last owner) is shown by the dialog, with its way out.
+    meta: { handles: [409], context: "updateRole" },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: memberKeys.list(workspaceId) }),
   });
@@ -34,7 +36,7 @@ export function useRemoveMember(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (memberId: string) => api.members.remove(workspaceId, memberId),
-    meta: { handles: [409] },
+    meta: { handles: [409], context: "removeMember" },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: memberKeys.list(workspaceId) });
       void queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });

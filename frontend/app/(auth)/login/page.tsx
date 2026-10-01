@@ -9,6 +9,7 @@ import {
 } from "@/components/app/auth-form";
 import { useLogin } from "@/hooks/use-auth";
 import { isApiError } from "@/lib/api";
+import { errorMessage, fieldErrorMessages } from "@/lib/error-messages";
 
 export default function LoginPage() {
   // Also takes over after a successful login: useLogin stores the user.
@@ -17,8 +18,8 @@ export default function LoginPage() {
 
   // Bad credentials: the server's message, which deliberately does not say
   // which of the two fields is wrong.
-  const banner = isApiError(login.error, 401) ? login.error.message : null;
-  const fieldErrors = isApiError(login.error, 400) ? login.error.fieldErrors : {};
+  const banner = isApiError(login.error, 401) ? errorMessage(login.error, "login") : null;
+  const fieldErrors = isApiError(login.error, 400) ? fieldErrorMessages(login.error.fieldErrors) : {};
 
   return (
     <AuthShell

@@ -14,6 +14,9 @@ importers:
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
+      client-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       cn:
         specifier: ^0.4.0
         version: 0.4.0

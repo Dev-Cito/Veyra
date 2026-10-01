@@ -22,6 +22,7 @@ import { useDeleteWorkspace, useRenameWorkspace, useWorkspace } from "@/hooks/us
 import { isApiError } from "@/lib/api";
 import { canManage } from "@/lib/format";
 import type { Workspace } from "@/lib/types";
+import { SubmitButton } from "@/components/app/submit-button";
 
 export default function SettingsPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -64,7 +65,7 @@ function RenameSection({ workspace }: { workspace: Workspace }) {
 
   return (
     <section className="rounded-card bg-surface p-5 shadow-card">
-      <form onSubmit={submit} className="flex flex-col gap-3">
+      <form method="post" onSubmit={submit} className="flex flex-col gap-3">
         <h2 className="font-display text-[15px] font-bold text-ink">Nom de l&apos;espace</h2>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="settings-name" className="sr-only">
@@ -91,10 +92,9 @@ function RenameSection({ workspace }: { workspace: Workspace }) {
         </div>
         {editable && (
           <div>
-            <Button type="submit" disabled={rename.isPending}>
-              {rename.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            <SubmitButton pending={rename.isPending} pendingLabel="Enregistrement…">
               Renommer l&apos;espace
-            </Button>
+            </SubmitButton>
           </div>
         )}
       </form>

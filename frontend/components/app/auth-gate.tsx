@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useMe } from "@/hooks/use-auth";
 import { isApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-messages";
 import { redirectToLogin } from "@/lib/session";
 import type { User } from "@/lib/types";
 import { EmptyState } from "./primitives";
@@ -36,7 +37,7 @@ export function AuthGate({ children }: { children: (user: User) => ReactNode }) 
           title="Impossible de vérifier votre session"
           action={<Button onClick={() => void me.refetch()}>Réessayer</Button>}
         >
-          Le serveur n&apos;a pas répondu. Vérifiez votre connexion, puis réessayez.
+          {errorMessage(me.error)}
         </EmptyState>
       </main>
     );

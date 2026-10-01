@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useRemoveMember, useUpdateMemberRole } from "@/hooks/use-members";
 import { isApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-messages";
 import { ROLE_CAPABILITIES, ROLE_LABELS } from "@/lib/format";
 import type { Member, Role } from "@/lib/types";
 
@@ -38,6 +39,7 @@ export function RoleDialog({
   member,
   candidates,
   initialRole,
+  onNameOwner,
 }: {
   workspaceId: string;
   open: boolean;
@@ -45,6 +47,8 @@ export function RoleDialog({
   member?: Member;
   candidates?: Member[];
   initialRole?: Role;
+  /** The way out of a 409 "last owner": open the dialog that names another one. */
+  onNameOwner?: () => void;
 }) {
   const [pickedId, setPickedId] = useState<string | undefined>(candidates?.[0]?.id);
   const [role, setRole] = useState<Role>(initialRole ?? member?.role ?? "MEMBER");
@@ -53,6 +57,25 @@ export function RoleDialog({
 
   const target = member ?? candidates?.find((c) => c.id === pickedId);
   const unchanged = target?.role === role;
+
+  // 409: the workspace would be left without an active owner. Say so in
+  // French, and offer the way out when there is one.
+  const lastOwnerConflict = (error: unknown, context: "updateRole" | "removeMember") => {
+    if (!isApiError(error, 409)) {
+      return;
+    }
+    toast.error(errorMessage(error, context), {
+      action: onNameOwner
+        ? {
+            label: "Nommer un propriétaire",
+            onClick: () => {
+              onOpenChange(false);
+              onNameOwner();
+            },
+          }
+        : undefined,
+    });
+  };
 
   const save = () => {
     if (!target) {
@@ -65,6 +88,7 @@ export function RoleDialog({
           toast.success(`Rôle changé : ${target.user.name} est maintenant ${ROLE_LABELS[role].toLowerCase()}`);
           onOpenChange(false);
         },
+        onError: (error) => lastOwnerConflict(error, "updateRole"),
       },
     );
   };
@@ -78,11 +102,7 @@ export function RoleDialog({
         toast.success(`${target.user.name} retiré de l'espace`);
         onOpenChange(false);
       },
-      onError: (error) => {
-        if (isApiError(error, 409)) {
-          toast.error(error.message);
-        }
-      },
+      onError: (error) => lastOwnerConflict(error, "removeMember"),
     });
   };
 

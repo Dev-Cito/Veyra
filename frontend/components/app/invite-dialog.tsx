@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -18,10 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateInvitation } from "@/hooks/use-invitations";
 import { isApiError } from "@/lib/api";
+import { errorMessage, fieldErrorMessages } from "@/lib/error-messages";
 import { ROLE_CAPABILITIES, ROLE_LABELS } from "@/lib/format";
 import type { InvitationRole, Member, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Banner, FieldError } from "./primitives";
+import { SubmitButton } from "@/components/app/submit-button";
 
 // OWNER is not offered: the API refuses it (400), so the UI does not propose it.
 const ROLES: InvitationRole[] = ["MEMBER", "ADMIN"];
@@ -41,7 +42,7 @@ export function InviteDialog({
   const [role, setRole] = useState<InvitationRole>("MEMBER");
   const [email, setEmail] = useState("");
   const invite = useCreateInvitation(workspaceId);
-  const errors = isApiError(invite.error, 400) ? invite.error.fieldErrors : {};
+  const errors = isApiError(invite.error, 400) ? fieldErrorMessages(invite.error.fieldErrors) : {};
   const conflict = isApiError(invite.error, 409) ? invite.error : null;
   const conflictIsMember = members.some(
     (m) => m.status === "ACTIVE" && m.user.email === email.trim().toLowerCase(),
@@ -63,6 +64,8 @@ export function InviteDialog({
               description: "L'invitation reste valide : elle apparaît dans les invitations en attente.",
             });
           }
+          // The response holds the raw token: do not keep it in the mutation cache.
+          invite.reset();
           close();
         },
       },
@@ -83,7 +86,7 @@ export function InviteDialog({
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-[440px]">
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form method="post" onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Inviter quelqu&apos;un</DialogTitle>
             <DialogDescription>
@@ -105,7 +108,9 @@ export function InviteDialog({
                 </Button>
               }
             >
-              {conflict.message}
+              {errorMessage(conflict, "invite", {
+                inviteConflict: conflictIsMember ? "member" : "pending",
+              })}
             </Banner>
           )}
 
@@ -167,10 +172,9 @@ export function InviteDialog({
           </fieldset>
 
           <DialogFooter>
-            <Button type="submit" disabled={invite.isPending}>
-              {invite.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            <SubmitButton pending={invite.isPending} pendingLabel="Envoi…">
               Envoyer l&apos;invitation
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

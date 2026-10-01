@@ -26,7 +26,7 @@ export function useCreateInvitation(workspaceId: string) {
     mutationFn: (body: { email: string; role: InvitationRole }) =>
       api.invitations.create(workspaceId, body),
     // 400 under the fields, 409 with its way out: both in the dialog.
-    meta: { handles: [400, 409] },
+    meta: { handles: [400, 409], context: "invite" },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: invitationKeys.pending(workspaceId) }),
   });
@@ -36,6 +36,8 @@ export function useRevokeInvitation(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (invitationId: string) => api.invitations.revoke(workspaceId, invitationId),
+    // 409 (already accepted or revoked) is shown by the page, with its way out.
+    meta: { handles: [409], context: "revokeInvitation" },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: invitationKeys.pending(workspaceId) }),
   });
@@ -47,7 +49,7 @@ export function useInvitationPreview(token: string | null) {
     queryKey: invitationKeys.preview,
     queryFn: () => api.invitations.preview(token!),
     enabled: token !== null,
-    meta: { allowAnonymous: true, handles: [404] },
+    meta: { allowAnonymous: true, handles: [404], context: "previewInvitation" },
     gcTime: 0,
   });
 }
@@ -57,7 +59,7 @@ export function useAcceptInvitation() {
   return useMutation({
     mutationFn: (token: string) => api.invitations.accept(token),
     // 403 (another account) and 404 (no longer valid) are page states.
-    meta: { handles: [403, 404] },
+    meta: { handles: [403, 404], context: "acceptInvitation" },
     onSuccess: (workspace) => {
       queryClient.setQueryData(workspaceKeys.detail(workspace.id), workspace);
       void queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });

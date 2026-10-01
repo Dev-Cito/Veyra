@@ -22,8 +22,11 @@ tests {
   test("au moins une tâche traitée", function() {
     expect(res.getBody().tasksProcessed).to.be.at.least(1);
   });
-  test("aucun email envoyé, MAIL_ENABLED est false", function() {
-    expect(res.getBody().emailsSent).to.eql(0);
+  test("aucun échec d'envoi", function() {
+    // emailsSent vaut 0 si MAIL_ENABLED=false, 1 ou plus avec un SMTP
+    // actif (Mailpit en local). Ce qui doit être vrai dans les deux cas,
+    // c'est qu'aucun envoi n'a échoué.
+    expect(res.getBody().emailsFailed).to.eql(0);
   });
 }
 

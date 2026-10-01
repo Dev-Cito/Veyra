@@ -44,14 +44,17 @@ export class MailService implements OnModuleInit {
     }
   }
 
-  /** A link into the frontend, e.g. link('/invite', { token }). */
-  link(path: string, query?: Record<string, string>): string {
+  /**
+   * A link into the frontend. `fragment` values go after `#`: browsers never
+   * send the fragment to a server, so a secret there reaches no access log.
+   */
+  link(path: string, fragment?: Record<string, string>): string {
     const base = (this.config.get<string>('FRONTEND_URL') ?? '').replace(
       /\/+$/,
       '',
     );
-    const search = query ? `?${new URLSearchParams(query).toString()}` : '';
-    return `${base}${path}${search}`;
+    const hash = fragment ? `#${new URLSearchParams(fragment).toString()}` : '';
+    return `${base}${path}${hash}`;
   }
 
   /**

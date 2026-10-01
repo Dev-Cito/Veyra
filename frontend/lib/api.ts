@@ -1,3 +1,6 @@
+// Fails the build if a Server Component ever imports this module: the session
+// cookie belongs to the API's domain, only the browser can send it.
+import "client-only";
 import type {
   Board,
   CreatedInvitation,
@@ -92,7 +95,14 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "Le serveur ne répond pas. Vérifiez votre connexion.");
+    // No response at all: a network failure, or CORS refusing this origin (the
+    // browser reports both the same way). In development, name the suspects.
+    throw new ApiError(
+      0,
+      process.env.NODE_ENV === "development"
+        ? "L'API est injoignable : serveur arrêté, ou CORS qui refuse cette origine. Vérifiez FRONTEND_URL (backend) et NEXT_PUBLIC_API_URL (frontend)."
+        : "Le serveur ne répond pas. Vérifiez votre connexion.",
+    );
   }
 
   if (response.status === 204) {

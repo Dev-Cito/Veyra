@@ -122,7 +122,8 @@ describe('Mail & reminders (e2e)', () => {
         from: process.env.MAIL_FROM,
         subject: 'Invitation à rejoindre Acme',
       });
-      const link = `${frontendUrl()}/invite?token=${res.body.token}`;
+      // In the fragment: never sent to (nor logged by) the front's server.
+      const link = `${frontendUrl()}/invite#token=${res.body.token}`;
       expect(mail.text).toContain(link);
       expect(mail.html).toContain(link);
       expect(mail.text).toContain('membre');

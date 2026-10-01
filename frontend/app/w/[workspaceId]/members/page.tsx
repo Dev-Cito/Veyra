@@ -26,6 +26,7 @@ import { useMembers, useRemoveMember } from "@/hooks/use-members";
 import { useWorkspace } from "@/hooks/use-workspaces";
 import { canManage, formatDate, ROLE_LABELS } from "@/lib/format";
 import { isApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-messages";
 import type { Invitation, Member, Workspace } from "@/lib/types";
 
 export default function MembersPage() {
@@ -130,7 +131,7 @@ function MembersContent() {
                 )
               }
             >
-              {lastOwner.message}
+              {errorMessage(lastOwner, "leaveWorkspace")}
             </Banner>
           )}
 
@@ -166,6 +167,21 @@ function MembersContent() {
                       onRevoke={() =>
                         revoke.mutate(invitation.id, {
                           onSuccess: () => toast.success(`Invitation de ${invitation.email} révoquée`),
+                          // 409: already accepted (the person is a member now) or
+                          // already revoked. The list refreshes either way.
+                          onError: (error) => {
+                            if (isApiError(error, 409)) {
+                              const accepted = /accepted/i.test(error.message);
+                              toast.error(errorMessage(error, "revokeInvitation"), {
+                                action: accepted
+                                  ? {
+                                      label: "Voir les membres",
+                                      onClick: () => router.push(`/w/${workspaceId}/members`),
+                                    }
+                                  : undefined,
+                              });
+                            }
+                          },
                         })
                       }
                     />
@@ -199,6 +215,7 @@ function MembersContent() {
           open
           onOpenChange={(open) => !open && setEditing(null)}
           member={editing}
+          onNameOwner={others.length > 0 ? () => setNamingOwner(true) : undefined}
         />
       )}
       {namingOwner && (

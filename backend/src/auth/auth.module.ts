@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { describeSessionCookie } from './session-cookie.js';
 
 @Module({
   imports: [
@@ -25,4 +26,9 @@ import { JwtStrategy } from './jwt.strategy.js';
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
   exports: [JwtAuthGuard],
 })
-export class AuthModule {}
+export class AuthModule implements OnModuleInit {
+  // Visible in the Render logs: the cookie policy follows FRONTEND_URL.
+  onModuleInit(): void {
+    new Logger('Auth').log(describeSessionCookie());
+  }
+}

@@ -1,10 +1,8 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useCreateWorkspace } from "@/hooks/use-workspaces";
 import { isApiError } from "@/lib/api";
 import { FieldError } from "./primitives";
+import { SubmitButton } from "@/components/app/submit-button";
 
 export function CreateWorkspaceDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -53,7 +52,7 @@ export function CreateWorkspaceDialog({ trigger }: { trigger: ReactNode }) {
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form method="post" onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Créer un workspace</DialogTitle>
             <DialogDescription>
@@ -75,10 +74,9 @@ export function CreateWorkspaceDialog({ trigger }: { trigger: ReactNode }) {
             <FieldError id="workspace-name-error" messages={errors.name} />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            <SubmitButton pending={create.isPending} pendingLabel="Création…">
               Créer le workspace
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>
