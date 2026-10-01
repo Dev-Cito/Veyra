@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* ─── Design tokens ────────────────────────────────────────────────────── */
+:root {
+  --stone: #f5f4f1; /* column and secondary panel background */
+  --surface: #ffffff; /* cards, panels */
+  --ink: #1a1d21; /* primary text */
+  --ink-2: #5c5f66; /* secondary text */
+  /* Tertiary text and placeholders. The mockup's #8E9099 fails WCAG AA
+     (3.18:1 on surface, 2.89:1 on stone); this is the lightest value of the
+     same hue that passes 4.5:1 on both. */
+  --ink-3: #6d6f78;
+  --rail: #d9d6d0; /* strong borders */
+  --hair: #e6e3dd; /* hairline borders */
+  --plum: #5a2a5f; /* primary action, identity, role */
+  --plum-soft: #f0e6f1;
+  --teal: #0e6e6b; /* what is assigned to the reader */
+  --teal-soft: #dcebea;
+  --ember: #a8410c; /* due within 24 h, errors */
+  --ember-soft: #f8e7db;
+
+  --shadow-card: 0 1px 2px rgba(26, 29, 33, 0.05),
+    0 0 0 1px rgba(26, 29, 33, 0.045);
+
+  /* shadcn/ui variables, mapped onto the tokens above. */
+  --background: var(--stone);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--plum);
+  --primary-foreground: var(--surface);
+  --secondary: var(--stone);
+  --secondary-foreground: var(--ink);
+  --muted: var(--stone);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--stone);
+  --accent-foreground: var(--ink);
+  --destructive: var(--ember);
+  --border: var(--hair);
+  --input: var(--rail);
+  --ring: var(--plum);
+  --radius: 9px;
+}
+
+@theme inline {
+  --color-stone: var(--stone);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rail: var(--rail);
+  --color-hair: var(--hair);
+  --color-plum: var(--plum);
+  --color-plum-soft: var(--plum-soft);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-ember: var(--ember);
+  --color-ember-soft: var(--ember-soft);
+
+  --shadow-card: var(--shadow-card);
+  --radius-card: 9px;
+  --radius-panel: 11px;
+  --radius-button: 5px;
+
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: var(--radius);
+  --radius-xl: 11px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* Keyboard focus, visible on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--plum);
+    outline-offset: 2px;
+  }
+  ::placeholder {
+    color: var(--ink-3);
+  }
+}
+
+@layer components {
+  /* Headings, workspace and board names, the brand. */
+  .font-display {
+    font-family: var(--font-heading);
+    letter-spacing: -0.018em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

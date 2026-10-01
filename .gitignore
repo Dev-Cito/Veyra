@@ -4,3 +4,7 @@ dist/
 .env.*
 !.env.example
 *.tsbuildinfo
+
+# Frontend (Next.js)
+frontend/.next/
+frontend/node_modules/
