@@ -72,3 +72,29 @@ export function ShellSkeleton() {
     </div>
   );
 }
+
+/** A board loading: three columns of cards, not a spinner. */
+export function BoardSkeleton() {
+  return (
+    <div className="flex h-full gap-[14px] overflow-hidden bg-surface p-[18px]" aria-busy="true" aria-label="Chargement du tableau">
+      {[3, 2, 4].map((count, column) => (
+        <div key={column} className="flex w-[238px] shrink-0 flex-col gap-[9px] self-start rounded-panel bg-stone p-[10px]">
+          <div className="mb-1 flex items-center gap-2">
+            <Skeleton className="h-3.5 w-24 bg-hair" />
+            <Skeleton className="h-3.5 w-6 rounded-full bg-hair" />
+          </div>
+          <Skeleton className="h-7 w-full rounded-[8px] bg-hair" />
+          {Array.from({ length: count }, (_, card) => (
+            <div key={card} className="flex flex-col gap-2 rounded-card bg-surface px-[13px] py-3 shadow-card">
+              <Skeleton className="h-3.5 w-4/5" />
+              <div className="flex gap-1.5">
+                <Skeleton className="h-4 w-14 rounded-full" />
+                <Skeleton className="h-4 w-12 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}

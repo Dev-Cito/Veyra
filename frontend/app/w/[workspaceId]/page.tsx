@@ -67,7 +67,7 @@ export default function BoardsPage() {
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[14px]">
             {boards.data.map((board) => (
               <li key={board.id}>
-                <BoardCard board={board} />
+                <BoardCard workspaceId={workspaceId} board={board} />
               </li>
             ))}
           </ul>
@@ -81,11 +81,17 @@ export default function BoardsPage() {
  * The card distribution bar and total are omitted: GET /boards does not
  * return per-list task counts, and nothing is invented in their place.
  */
-function BoardCard({ board }: { board: Board }) {
+function BoardCard({ workspaceId, board }: { workspaceId: string; board: Board }) {
   return (
-    <article className="flex h-full flex-col gap-1.5 rounded-card bg-surface p-4 shadow-card">
+    <article className="relative flex h-full flex-col gap-1.5 rounded-card bg-surface p-4 shadow-card transition-shadow hover:shadow-[0_1px_3px_rgba(26,29,33,0.08),0_0_0_1px_rgba(26,29,33,0.08)]">
       <h2 className="font-display truncate text-[15px] font-bold text-ink" title={board.name}>
-        {board.name}
+        {/* The whole card is the link (::after), the title its accessible name. */}
+        <Link
+          href={`/w/${workspaceId}/b/${board.id}`}
+          className="rounded-card after:absolute after:inset-0 after:rounded-card"
+        >
+          {board.name}
+        </Link>
       </h2>
       {board.description && (
         <p className="line-clamp-2 text-[13px] text-ink-2">{board.description}</p>

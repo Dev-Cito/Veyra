@@ -44,6 +44,62 @@ export interface Board {
   updatedAt: string;
 }
 
+export type TaskPriority = "LOW" | "MEDIUM" | "HIGH";
+
+export interface TaskAssignee {
+  id: string;
+  taskId: string;
+  userId: string;
+  assignedAt: string;
+  user: User;
+}
+
+export interface Task {
+  id: string;
+  listId: string;
+  title: string;
+  description: string | null;
+  /** Server-owned ordering key: never sent, never displayed. */
+  position: number;
+  dueDate: string | null;
+  priority: TaskPriority;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignees: TaskAssignee[];
+}
+
+export interface List {
+  id: string;
+  boardId: string;
+  name: string;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListWithTasks extends List {
+  /** Sorted by position. */
+  tasks: Task[];
+}
+
+/** GET /boards/:id/full: the whole Kanban view, sorted, in one request. */
+export interface FullBoard extends Board {
+  /** Sorted by position. */
+  lists: ListWithTasks[];
+}
+
+/**
+ * A move endpoint's answer: the item as written (a moved task comes back
+ * without its assignees). `reindexed`: its siblings were renumbered too.
+ */
+export type Moved<T> = T & { reindexed: boolean };
+
+export interface DeletedList {
+  id: string;
+  deletedTasks: number;
+}
+
 export interface Invitation {
   id: string;
   workspaceId: string;

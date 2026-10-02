@@ -148,7 +148,7 @@ function ContextNav({
       href: base,
       label: "Tableaux",
       icon: LayoutGrid,
-      active: pathname === base,
+      active: pathname === base || pathname.startsWith(`${base}/b/`),
       count: boards.data?.length,
     },
     {

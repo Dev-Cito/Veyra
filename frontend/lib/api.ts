@@ -4,14 +4,21 @@ import "client-only";
 import type {
   Board,
   CreatedInvitation,
+  DeletedList,
   DeletedWorkspace,
+  FullBoard,
   Invitation,
   InvitationPreview,
   InvitationRole,
+  List,
   Member,
+  Moved,
   RemovedMember,
   RevokedInvitation,
   Role,
+  Task,
+  TaskAssignee,
+  TaskPriority,
   User,
   Workspace,
 } from "./types";
@@ -120,6 +127,14 @@ const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body 
 const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
 const del = <T>(path: string) => request<T>("DELETE", path);
 
+/** PATCH /tasks/:id. `null` clears the description or the due date. */
+export interface TaskChanges {
+  title?: string;
+  description?: string | null;
+  dueDate?: string | null;
+  priority?: TaskPriority;
+}
+
 const ws = (workspaceId: string) => `/workspaces/${encodeURIComponent(workspaceId)}`;
 
 export const api = {
@@ -153,6 +168,46 @@ export const api = {
     list: (workspaceId: string) => get<Board[]>(`${ws(workspaceId)}/boards`),
     create: (workspaceId: string, body: { name: string; description?: string }) =>
       post<Board>(`${ws(workspaceId)}/boards`, body),
+    full: (workspaceId: string, boardId: string) =>
+      get<FullBoard>(`${ws(workspaceId)}/boards/${encodeURIComponent(boardId)}/full`),
+  },
+
+  // No `position` anywhere below: the server is its only authority. Moves
+  // name the neighbours the item was dropped between (lib/neighbours.ts).
+  lists: {
+    create: (workspaceId: string, boardId: string, body: { name: string }) =>
+      post<List>(`${ws(workspaceId)}/boards/${encodeURIComponent(boardId)}/lists`, body),
+    rename: (workspaceId: string, listId: string, body: { name: string }) =>
+      patch<List>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}`, body),
+    move: (
+      workspaceId: string,
+      listId: string,
+      body: { previousListId: string | null; nextListId: string | null },
+    ) => patch<Moved<List>>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}/move`, body),
+    remove: (workspaceId: string, listId: string) =>
+      del<DeletedList>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}`),
+  },
+
+  tasks: {
+    create: (workspaceId: string, listId: string, body: { title: string }) =>
+      post<Task>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}/tasks`, body),
+    update: (workspaceId: string, taskId: string, body: TaskChanges) =>
+      patch<Task>(`${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}`, body),
+    move: (
+      workspaceId: string,
+      taskId: string,
+      body: { targetListId: string; previousTaskId: string | null; nextTaskId: string | null },
+    ) => patch<Moved<Task>>(`${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}/move`, body),
+    remove: (workspaceId: string, taskId: string) =>
+      del<{ id: string }>(`${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}`),
+    assign: (workspaceId: string, taskId: string, userId: string) =>
+      post<TaskAssignee>(`${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}/assignees`, {
+        userId,
+      }),
+    unassign: (workspaceId: string, taskId: string, userId: string) =>
+      del<{ taskId: string; userId: string }>(
+        `${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}/assignees/${encodeURIComponent(userId)}`,
+      ),
   },
 
   invitations: {

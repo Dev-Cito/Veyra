@@ -55,7 +55,7 @@ export function Pill({
   tone = "stone",
   children,
 }: {
-  tone?: "stone" | "ember" | "plum";
+  tone?: "stone" | "ember" | "plum" | "teal";
   children: ReactNode;
 }) {
   return (
@@ -65,6 +65,7 @@ export function Pill({
         tone === "stone" && "bg-stone text-ink-2",
         tone === "ember" && "bg-ember-soft text-ember",
         tone === "plum" && "bg-plum-soft text-plum",
+        tone === "teal" && "bg-teal-soft text-teal",
       )}
     >
       {children}
