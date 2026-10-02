@@ -13,6 +13,15 @@ import { useRegister } from "@/hooks/use-auth";
 import { isApiError } from "@/lib/api";
 import { errorMessage, fieldErrorMessages } from "@/lib/error-messages";
 
+/** The browser's IANA zone, for dates in emails; omitted if it cannot be read. */
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function RegisterPage() {
   // Also takes over after a successful sign-up: useRegister stores the user.
   useRedirectIfSignedIn();
@@ -41,6 +50,7 @@ export default function RegisterPage() {
               name: String(form.get("name")),
               email: String(form.get("email")),
               password: String(form.get("password")),
+              timezone: browserTimeZone(),
             },
             {
               // 409: the email already has an account. Say so, and offer the way out.

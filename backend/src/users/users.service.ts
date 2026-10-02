@@ -22,6 +22,7 @@ export class UsersService {
         email: true,
         name: true,
         passwordHash: true,
+        timezone: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -32,6 +33,7 @@ export class UsersService {
     email: string;
     name: string;
     passwordHash: string;
+    timezone: string | null;
   }): Promise<User> {
     try {
       const { passwordHash: _, ...user } = await this.users.save(

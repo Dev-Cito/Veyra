@@ -127,7 +127,7 @@ export const api = {
     me: () => get<User>("/auth/me"),
     login: (body: { email: string; password: string }) =>
       post<User>("/auth/login", body),
-    register: (body: { email: string; name: string; password: string }) =>
+    register: (body: { email: string; name: string; password: string; timezone?: string }) =>
       post<User>("/auth/register", body),
     logout: () => post<void>("/auth/logout"),
   },

@@ -42,6 +42,8 @@ export default defineConfig({
       MAIL_ENABLED: 'false',
       MAIL_FROM: 'Veyra <no-reply@veyra.test>',
       FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+      // Pinned: email dates are asserted against it, whatever .env says.
+      DEFAULT_TIMEZONE: 'Africa/Kigali',
     },
   },
 });

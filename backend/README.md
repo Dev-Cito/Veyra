@@ -89,7 +89,14 @@ valide et renvoie `emailSent: false`.
 | `SMTP_SECURE` | `true` pour TLS implicite (souvent 465), sinon STARTTLS |
 | `SMTP_USER`, `SMTP_PASSWORD` | Identifiants, les deux ou aucun |
 | `MAIL_FROM` | Adresse d'expédition (requise si activé) |
-| `FRONTEND_URL` | Base des liens (`/invite#token=…`, `/boards/:id`), requise si activé |
+| `FRONTEND_URL` | Base des liens (`/invite#token=…`, `/w/:workspaceId/b/:boardId`), requise si activé |
+| `DEFAULT_TIMEZONE` | Fuseau IANA des dates dans les emails quand celui du destinataire est inconnu (défaut `Africa/Kigali`) |
+
+Les dates des emails sont affichées dans le fuseau du destinataire
+(`User.timezone`, envoyé par le navigateur à l'inscription et validé contre
+les fuseaux IANA connus de Node), sinon dans `DEFAULT_TIMEZONE`. Seul
+l'affichage est localisé : la fenêtre de sélection des rappels reste calculée
+en UTC par Postgres.
 
 Le rappel d'échéance tourne toutes les heures : chaque tâche dont la
 `dueDate` tombe dans les 24 heures reçoit un seul rappel, envoyé à ses

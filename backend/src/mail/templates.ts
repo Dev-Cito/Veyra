@@ -16,13 +16,25 @@ const ROLE_LABELS: Record<string, string> = {
   MEMBER: 'membre',
 };
 
-// Recipients' time zones are unknown: dates are shown in UTC, explicitly.
-const DATE_FORMAT = new Intl.DateTimeFormat('fr-FR', {
-  dateStyle: 'full',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-});
-const formatDate = (date: Date) => `${DATE_FORMAT.format(date)} (UTC)`;
+const DATE_FORMATS = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * In the recipient's time zone, with no zone label: it is their own clock.
+ * (dateStyle cannot be combined with timeZoneName anyway.) `timeZone` must be
+ * an id already validated with isTimeZone: MailService guarantees it.
+ */
+export function formatDate(date: Date, timeZone: string): string {
+  let format = DATE_FORMATS.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat('fr-FR', {
+      timeZone,
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+    DATE_FORMATS.set(timeZone, format);
+  }
+  return format.format(date);
+}
 
 function layout(title: string, body: string): string {
   return `<!doctype html>
@@ -46,10 +58,11 @@ export function invitationMail(params: {
   role: string;
   link: string;
   expiresAt: Date;
+  timeZone: string;
 }): RenderedMail {
   const inviter = params.inviterName ?? 'Un membre';
   const role = ROLE_LABELS[params.role] ?? params.role;
-  const expires = formatDate(params.expiresAt);
+  const expires = formatDate(params.expiresAt, params.timeZone);
   const subject = oneLine(`Invitation à rejoindre ${params.workspaceName}`);
 
   const html = layout(
@@ -74,23 +87,24 @@ export function reminderMail(params: {
   boardName: string;
   listName: string;
   link: string;
+  timeZone: string;
 }): RenderedMail {
-  const due = formatDate(params.dueDate);
+  const due = formatDate(params.dueDate, params.timeZone);
   const subject = oneLine(`Échéance proche pour ${params.taskTitle}`);
 
   const html = layout(
     subject,
     `<p>La tâche <strong>${e(params.taskTitle)}</strong> arrive à échéance le ${e(due)}.</p>
-    <p>Board : ${e(params.boardName)}<br>Liste : ${e(params.listName)}</p>
-    ${button(params.link, 'Ouvrir le board')}`,
+    <p>Tableau : ${e(params.boardName)}<br>Colonne : ${e(params.listName)}</p>
+    ${button(params.link, 'Ouvrir le tableau')}`,
   );
   const text = [
     `La tâche "${params.taskTitle}" arrive à échéance le ${due}.`,
     '',
-    `Board : ${params.boardName}`,
-    `Liste : ${params.listName}`,
+    `Tableau : ${params.boardName}`,
+    `Colonne : ${params.listName}`,
     '',
-    `Ouvrir le board : ${params.link}`,
+    `Ouvrir le tableau : ${params.link}`,
   ].join('\n');
   return { subject, html, text };
 }

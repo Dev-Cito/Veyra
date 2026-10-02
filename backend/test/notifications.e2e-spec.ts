@@ -3,9 +3,11 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { MAIL_TRANSPORT } from '../src/mail/mail.config.js';
+import { formatDate } from '../src/mail/templates.js';
 import { REMINDER_BATCH_SIZE } from '../src/notifications/reminder.service.js';
 import { TaskAssignee } from '../src/tasks/entities/task-assignee.entity.js';
 import { Task } from '../src/tasks/entities/task.entity.js';
+import { User } from '../src/users/user.entity.js';
 import { WorkspaceRole } from '../src/workspaces/workspace.enums.js';
 import {
   addMember,
@@ -21,6 +23,8 @@ import {
 const HOUR = 3600 * 1000;
 const inHours = (hours: number) => new Date(Date.now() + hours * HOUR);
 const frontendUrl = () => process.env.FRONTEND_URL!;
+// Pinned in vitest.config.e2e.ts.
+const DEFAULT_TIMEZONE = 'Africa/Kigali';
 
 describe('Mail & reminders (e2e)', () => {
   let app: INestApplication;
@@ -75,6 +79,16 @@ describe('Mail & reminders (e2e)', () => {
     return task;
   }
 
+  /** Registered in that zone (as the browser would have sent it), or none. */
+  async function userIn(
+    timezone: string | null,
+    name = 'Zoned',
+  ): Promise<TestUser> {
+    const user = await registerUser(app, name);
+    await dataSource.getRepository(User).update(user.id, { timezone });
+    return user;
+  }
+
   const reminderSentOf = async (taskId: string) =>
     (await dataSource.getRepository(Task).findOneByOrFail({ id: taskId }))
       .reminderSent;
@@ -127,6 +141,33 @@ describe('Mail & reminders (e2e)', () => {
       expect(mail.text).toContain(link);
       expect(mail.html).toContain(link);
       expect(mail.text).toContain('membre');
+    });
+
+    it("shows the expiry in the invitee's zone if they have an account, else the default", async () => {
+      const { ws } = await freshWorkspace();
+      const known = await userIn('America/New_York');
+      for (const email of [known.email, `inv-${randomUUID()}@veyra.test`]) {
+        await owner.agent
+          .post(`/workspaces/${ws}/invitations`)
+          .send({ email, role: 'MEMBER' })
+          .expect(201);
+      }
+      const invitations = await dataSource.query<
+        { email: string; expiresAt: Date }[]
+      >(`SELECT email, "expiresAt" FROM invitations WHERE "workspaceId" = $1`, [
+        ws,
+      ]);
+      const expiry = (email: string) =>
+        invitations.find((row) => row.email === email)!.expiresAt;
+
+      const [toKnown, toUnknown] = transport.sent;
+      expect(toKnown.text).toContain(
+        formatDate(expiry(known.email), 'America/New_York'),
+      );
+      expect(toUnknown.text).toContain(
+        formatDate(expiry(toUnknown.to), DEFAULT_TIMEZONE),
+      );
+      expect(toKnown.text).not.toContain('UTC');
     });
 
     it('b) a failed send does not fail the invitation', async () => {
@@ -214,10 +255,44 @@ describe('Mail & reminders (e2e)', () => {
       const [mail] = transport.sent;
       expect(mail.to).toBe(member.email);
       expect(mail.subject).toBe('Échéance proche pour Ship <v1>');
-      expect(mail.text).toContain('Board : Roadmap');
-      expect(mail.text).toContain('Liste : Doing');
-      expect(mail.text).toContain(`${frontendUrl()}/boards/${boardId}`);
+      expect(mail.text).toContain('Tableau : Roadmap');
+      expect(mail.text).toContain('Colonne : Doing');
+      expect(mail.html).toContain('Tableau : Roadmap<br>Colonne : Doing');
+      const link = `${frontendUrl()}/w/${ws}/b/${boardId}`;
+      expect(mail.text).toContain(link);
+      expect(mail.html).toContain(`href="${link}"`);
       expect(mail.html).toContain('Ship &lt;v1&gt;');
+    });
+
+    it("dates each reminder in its recipient's zone, local day included", async () => {
+      const { ws, listId } = await freshWorkspace();
+      // UTC+14 and UTC-11: 25 hours apart, never on the same calendar day.
+      const east = await userIn('Pacific/Kiritimati', 'East');
+      const west = await userIn('Pacific/Pago_Pago', 'West');
+      const unknown = await userIn(null, 'Unknown');
+      for (const user of [east, west, unknown]) {
+        await addMember(app, ws, user, WorkspaceRole.MEMBER);
+      }
+      const task = await insertTask(listId, inHours(12), {
+        assignees: [east, west, unknown],
+      });
+
+      await run(ws).expect(200);
+      const textFor = (user: TestUser) =>
+        transport.sent.find((mail) => mail.to === user.email)!.text;
+
+      const eastDate = formatDate(task.dueDate!, 'Pacific/Kiritimati');
+      const westDate = formatDate(task.dueDate!, 'Pacific/Pago_Pago');
+      // The weekday (first word) differs: the local day is the right one.
+      expect(eastDate.split(' ')[0]).not.toBe(westDate.split(' ')[0]);
+      expect(textFor(east)).toContain(eastDate);
+      expect(textFor(west)).toContain(westDate);
+      expect(textFor(unknown)).toContain(
+        formatDate(task.dueDate!, DEFAULT_TIMEZONE),
+      );
+      for (const mail of transport.sent) {
+        expect(mail.text).not.toContain('UTC');
+      }
     });
 
     it('f) g) h) due in 48 h, already past, or already reminded: not processed', async () => {

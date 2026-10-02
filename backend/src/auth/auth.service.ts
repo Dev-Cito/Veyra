@@ -20,6 +20,7 @@ export class AuthService {
       email: dto.email,
       name: dto.name,
       passwordHash,
+      timezone: dto.timezone ?? null,
     });
     return { user, token: await this.sign(user) };
   }

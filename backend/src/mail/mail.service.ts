@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { FALLBACK_TIMEZONE, isTimeZone } from '../common/timezone.js';
 import {
   MAIL_TRANSPORT,
   type MailTransport,
@@ -23,13 +24,26 @@ export type MailOutcome = 'sent' | 'skipped' | 'failed';
 @Injectable()
 export class MailService implements OnModuleInit {
   private readonly logger = new Logger('Mail');
+  /** For recipients whose zone is unknown (no account, or none recorded). */
+  private readonly defaultTimeZone: string;
 
   constructor(
     @Inject(MAIL_TRANSPORT) private readonly transport: MailTransport | null,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    const configured = this.config.get<string>('DEFAULT_TIMEZONE');
+    this.defaultTimeZone = isTimeZone(configured)
+      ? configured
+      : FALLBACK_TIMEZONE;
+  }
 
   onModuleInit(): void {
+    const configured = this.config.get<string>('DEFAULT_TIMEZONE');
+    if (configured && configured !== this.defaultTimeZone) {
+      this.logger.warn(
+        `DEFAULT_TIMEZONE is not a valid IANA time zone, using ${FALLBACK_TIMEZONE}`,
+      );
+    }
     const config = readMailConfig(process.env);
     if (this.transport && config.enabled) {
       this.logger.log(`Mail enabled through ${config.host}:${config.port}`);
@@ -58,6 +72,16 @@ export class MailService implements OnModuleInit {
   }
 
   /**
+   * The zone dates are shown in. A stored zone was validated on the way in;
+   * it is checked again since only a valid id may reach Intl formatting.
+   */
+  timeZoneFor(recipientTimeZone: string | null | undefined): string {
+    return isTimeZone(recipientTimeZone)
+      ? recipientTimeZone
+      : this.defaultTimeZone;
+  }
+
+  /**
    * The raw token only exists in the body of this email (and in the creation
    * response). It is passed as `secrets` so that no log line can contain it.
    */
@@ -68,10 +92,13 @@ export class MailService implements OnModuleInit {
     role: string;
     token: string;
     expiresAt: Date;
+    /** The invitee's, if they already have an account. */
+    timeZone: string | null;
   }): Promise<MailOutcome> {
     const mail = invitationMail({
       ...params,
       link: this.link('/invite', { token: params.token }),
+      timeZone: this.timeZoneFor(params.timeZone),
     });
     return this.send(params.to, mail, [params.token]);
   }
@@ -80,13 +107,18 @@ export class MailService implements OnModuleInit {
     to: string;
     taskTitle: string;
     dueDate: Date;
+    workspaceId: string;
     boardId: string;
     boardName: string;
     listName: string;
+    timeZone: string | null;
   }): Promise<MailOutcome> {
     const mail = reminderMail({
       ...params,
-      link: this.link(`/boards/${encodeURIComponent(params.boardId)}`),
+      link: this.link(
+        `/w/${encodeURIComponent(params.workspaceId)}/b/${encodeURIComponent(params.boardId)}`,
+      ),
+      timeZone: this.timeZoneFor(params.timeZone),
     });
     return this.send(params.to, mail);
   }

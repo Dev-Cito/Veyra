@@ -21,6 +21,10 @@ export class User {
   @Column({ type: 'varchar', length: 255, select: false })
   passwordHash: string;
 
+  /** IANA id (e.g. 'Africa/Kigali'), for dates in emails; null: DEFAULT_TIMEZONE. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  timezone: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

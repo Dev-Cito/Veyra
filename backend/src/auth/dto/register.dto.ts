@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Length, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from 'class-validator';
+import { IsTimeZone } from '../../common/timezone.js';
 import { NoNullBytes } from '../../common/validation.js';
 
 export class RegisterDto {
@@ -22,4 +29,12 @@ export class RegisterDto {
   @Length(8, 72)
   @NoNullBytes()
   password: string;
+
+  // The browser's zone, for dates in emails. Optional (null too: the column
+  // is nullable and null means "unknown", hence @IsOptional).
+  @IsOptional()
+  @IsString()
+  @NoNullBytes()
+  @IsTimeZone()
+  timezone?: string | null;
 }

@@ -19,9 +19,10 @@ interface ClaimedTask {
   title: string;
   dueDate: Date;
   listName: string;
+  workspaceId: string;
   boardId: string;
   boardName: string;
-  recipients: { email: string }[];
+  recipients: { email: string; timezone: string | null }[];
 }
 
 /**
@@ -76,9 +77,11 @@ export class ReminderService {
             to: recipient.email,
             taskTitle: task.title,
             dueDate: task.dueDate,
+            workspaceId: task.workspaceId,
             boardId: task.boardId,
             boardName: task.boardName,
             listName: task.listName,
+            timeZone: recipient.timezone,
           });
           if (outcome === 'sent') {
             result.emailsSent++;
@@ -140,19 +143,23 @@ export class ReminderService {
       [ids],
     );
 
+    // A plain read, no lock: the claim above locked the task rows only.
     const rows = await manager.query<
       {
         id: string;
         title: string;
         dueDate: Date;
         listName: string;
+        workspaceId: string;
         boardId: string;
         boardName: string;
         email: string | null;
+        timezone: string | null;
       }[]
     >(
       `SELECT t.id, t.title, t."dueDate", l.name AS "listName",
-              b.id AS "boardId", b.name AS "boardName", u.email
+              b."workspaceId", b.id AS "boardId", b.name AS "boardName",
+              u.email, u.timezone
        FROM tasks t
        JOIN lists l ON l.id = t."listId"
        JOIN boards b ON b.id = l."boardId"
@@ -170,12 +177,13 @@ export class ReminderService {
         title: row.title,
         dueDate: row.dueDate,
         listName: row.listName,
+        workspaceId: row.workspaceId,
         boardId: row.boardId,
         boardName: row.boardName,
         recipients: [],
       };
       if (row.email) {
-        task.recipients.push({ email: row.email });
+        task.recipients.push({ email: row.email, timezone: row.timezone });
       }
       tasks.set(row.id, task);
     }

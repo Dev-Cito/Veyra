@@ -170,6 +170,11 @@ export class InvitationsService {
             id: invitation.invitedById,
           })
         : null;
+      // The invitee may already have an account: then dates use their zone.
+      const invitee = await this.dataSource.manager.findOne(User, {
+        where: { email: invitation.email },
+        select: { id: true, timezone: true },
+      });
       const outcome = await this.mail.sendInvitation({
         to: invitation.email,
         workspaceName: workspace.name,
@@ -177,6 +182,7 @@ export class InvitationsService {
         role: invitation.role,
         token,
         expiresAt: invitation.expiresAt,
+        timeZone: invitee?.timezone ?? null,
       });
       return outcome === 'sent';
     } catch (err) {
