@@ -6,7 +6,7 @@ import type { FullBoard, ListWithTasks } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useBoardContext } from "./board-context";
 import { ListComposer } from "./board-dialogs";
-import { AddCardButton, ColumnHeader, EmptyColumnHint, TaskComposer } from "./column";
+import { ColumnAddRow, ColumnComposer, ColumnHeader, EmptyColumnHint, type Composer } from "./column";
 import { StaticTaskCard } from "./task-card";
 
 /**
@@ -26,7 +26,7 @@ export function MobileBoard({
 }) {
   const { manager, addList } = useBoardContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [composing, setComposing] = useState(false);
+  const [composer, setComposer] = useState<Composer>(null);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   // The chosen tab, or the first one if it was deleted (or none chosen yet).
   const selected = board.lists.find((list) => list.id === selectedId) ?? board.lists[0];
@@ -35,7 +35,7 @@ export function MobileBoard({
     const list = board.lists[index];
     if (list) {
       setSelectedId(list.id);
-      setComposing(false);
+      setComposer(null);
       tabs.current[index]?.focus();
     }
   };
@@ -109,14 +109,14 @@ export function MobileBoard({
             className="rounded-panel bg-stone p-[10px]"
           >
             <ColumnHeader list={selected} count={selected.tasks.length} onDelete={onDeleteList} />
-            <AddCardButton list={selected} onClick={() => setComposing(true)} />
+            <ColumnAddRow list={selected} onCompose={setComposer} />
             {selected.tasks.map((task) => (
               <StaticTaskCard key={task.id} task={task} />
             ))}
-            {selected.tasks.length === 0 && !composing && (
+            {selected.tasks.length === 0 && !composer && (
               <EmptyColumnHint>Aucune carte. Ajoutez-en une avec +.</EmptyColumnHint>
             )}
-            {composing && <TaskComposer listId={selected.id} onClose={() => setComposing(false)} />}
+            <ColumnComposer listId={selected.id} composer={composer} onCompose={setComposer} />
           </section>
         )}
       </div>

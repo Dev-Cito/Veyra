@@ -42,6 +42,10 @@ export default defineConfig({
       MAIL_ENABLED: 'false',
       MAIL_FROM: 'Veyra <no-reply@veyra.test>',
       FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+      // Never a real language model call from a test run, whatever the local
+      // .env says (it may hold a real key). Suites that need one inject a fake.
+      LLM_ENABLED: 'false',
+      LLM_API_KEY: '',
       // Pinned: email dates are asserted against it, whatever .env says.
       DEFAULT_TIMEZONE: 'Africa/Kigali',
     },

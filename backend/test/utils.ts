@@ -6,6 +6,12 @@ import type TestAgent from 'supertest/lib/agent.js';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import {
+  LLM_CLIENT,
+  type LlmClient,
+  type LlmCompletion,
+  type LlmMessage,
+} from '../src/llm/llm.client.js';
 import { MAIL_TRANSPORT, type MailTransport } from '../src/mail/mail.config.js';
 import { WorkspaceMember } from '../src/workspaces/entities/workspace-member.entity.js';
 import {
@@ -16,6 +22,8 @@ import {
 export interface TestAppOptions {
   /** Replaces the (disabled) mail transport, e.g. with an InMemoryTransport. */
   mailTransport?: MailTransport;
+  /** Replaces the (disabled) language model client, e.g. with a FakeLlmClient. */
+  llmClient?: LlmClient;
   /** Receives every log line, all levels (Nest's test logger drops most). */
   logger?: LoggerService;
 }
@@ -28,6 +36,9 @@ export async function createTestApp(
     builder = builder
       .overrideProvider(MAIL_TRANSPORT)
       .useValue(options.mailTransport);
+  }
+  if (options.llmClient) {
+    builder = builder.overrideProvider(LLM_CLIENT).useValue(options.llmClient);
   }
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
@@ -163,5 +174,40 @@ export class CapturingLogger implements LoggerService {
   }
   verbose(message: unknown, ...rest: unknown[]) {
     this.record('verbose', message, rest);
+  }
+}
+
+/**
+ * A language model that answers from a script, never from the network. Each
+ * reply is a string (the model's text), or an Error to throw.
+ */
+export class FakeLlmClient implements LlmClient {
+  readonly model = 'fake-model';
+  readonly calls: LlmMessage[][] = [];
+  private replies: (string | Error)[] = [];
+
+  /** Replies for the next calls, in order; the last one repeats. */
+  reply(...replies: (string | Error)[]): this {
+    this.replies = replies;
+    return this;
+  }
+
+  complete(request: { messages: LlmMessage[] }): Promise<LlmCompletion> {
+    this.calls.push(request.messages.map((message) => ({ ...message })));
+    const next =
+      this.replies.length > 1 ? this.replies.shift()! : this.replies[0];
+    if (next instanceof Error) {
+      return Promise.reject(next);
+    }
+    return Promise.resolve({
+      content: next ?? null,
+      model: this.model,
+      usage: { inputTokens: 100, outputTokens: 20 },
+    });
+  }
+
+  reset(): void {
+    this.calls.length = 0;
+    this.replies = [];
   }
 }

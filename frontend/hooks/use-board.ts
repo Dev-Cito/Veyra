@@ -2,11 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, isApiError, type TaskChanges } from "@/lib/api";
+import { api, isApiError, type NewTask, type TaskChanges } from "@/lib/api";
 import * as cache from "@/lib/board-cache";
 import { errorMessage, type ErrorContext } from "@/lib/error-messages";
 import type { Neighbours } from "@/lib/neighbours";
-import type { FullBoard, List, Moved, Task } from "@/lib/types";
+import type { Features, FullBoard, List, Moved, Task } from "@/lib/types";
+import { featuresKey } from "./use-features";
 
 export const boardKeys = {
   // Not under ["workspaces", id, "boards"]: invalidating the boards list must
@@ -230,8 +231,8 @@ export function useDeleteList(workspaceId: string, boardId: string) {
 export function useCreateTask(workspaceId: string, boardId: string) {
   const board = useBoardCache(workspaceId, boardId);
   return useMutation({
-    mutationFn: ({ listId, title }: { listId: string; title: string }) =>
-      api.tasks.create(workspaceId, listId, { title }),
+    mutationFn: ({ listId, ...body }: NewTask & { listId: string }) =>
+      api.tasks.create(workspaceId, listId, body),
     meta: { context: "createTask" },
     onSuccess: (task) => board.edit((current) => cache.addTask(current, task)),
     onError: (error) => isApiError(error, 404) && board.refresh(),
@@ -291,5 +292,25 @@ export function useUnassignTask(workspaceId: string, boardId: string) {
         })),
       ),
     onError: (error) => isApiError(error, 404) && board.refresh(),
+  });
+}
+
+/**
+ * Natural-language parsing: a proposal the user reviews before creating. Every
+ * failure is shown in the composer itself (the text is never lost), so the
+ * global policy stays out of it. A 503 means the feature is off here: the
+ * button disappears.
+ */
+export function useParseTask(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ listId, text }: { listId: string; text: string }) =>
+      api.tasks.parse(workspaceId, listId, text),
+    meta: { handles: [0, 400, 422, 429, 500, 502, 503, 504], context: "parseTask" },
+    onError: (error) => {
+      if (isApiError(error, 503)) {
+        queryClient.setQueryData<Features>(featuresKey, { assistedTaskCreation: false });
+      }
+    },
   });
 }

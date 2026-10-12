@@ -6,7 +6,7 @@ This is a portfolio project, the sixth in a series. I built it to work through s
 
 ## What it does
 
-Alice creates a workspace and invites Bob as a member. Bob gets an email, opens the link and joins with the role Alice chose. They split the work into boards and columns, add cards, assign them, and reorder them by drag and drop, with the mouse or the keyboard. When a card's due date is less than 24 hours away, each assignee gets one email reminder.
+Alice creates a workspace and invites Bob as a member. Bob gets an email, opens the link and joins with the role Alice chose. They split the work into boards and columns, add cards, assign them, and reorder them by drag and drop, with the mouse or the keyboard. When a card's due date is less than 24 hours away, each assignee gets one email reminder. A card can also start as a sentence: "Revoir les maquettes avec le client vendredi, urgent" becomes a proposal with a clean title, Friday 17:00 as due date and high priority, which Alice checks before creating it.
 
 The hard part is that roles are not global. Alice owns her workspace and can be a plain member of Bob's. Every request has to answer "who is this user *in this workspace*?", and no resource from another workspace may leak through. That makes this an architecture exercise rather than a CRUD app.
 
@@ -25,6 +25,7 @@ The interface is in French. The API answers in English, and the frontend maps ea
 | Frontend | Next.js 16 (App Router), React 19, Tailwind 4 | |
 | Data fetching | TanStack Query 5 | The session cookie belongs to the API's domain, so the Next server cannot send it: every call runs in the browser, and data is cached there |
 | Drag and drop | dnd-kit | Pointer and keyboard sensors, screen-reader announcements |
+| Language model (optional) | Any OpenAI-compatible Chat Completions API, plain `fetch`; developed with Groq and `qwen/qwen3.8-27b` | Changing provider is a change of three environment variables, so the same cases can later run on several models |
 | Tests | Vitest, Supertest, Bruno | |
 
 ## The engineering problems
@@ -65,12 +66,18 @@ The interface is in French. The API answers in English, and the frontend maps ea
 **Solution.** The database stores only the SHA-256 of the token. The token travels in request bodies (`POST /invitations/preview`, `POST /invitations/accept`) and in the email link's URL fragment (`/invite#token=…`), which browsers never send to a server. It never appears in a path or a query string, so it reaches no access log.
 **Identity check.** Accepting requires the signed-in account's email to match the invited email. The token proves that someone received the message, not who they are.
 
+### The model proposes, the code authorises
+
+**Problem.** A language model turns a sentence into a card. Its output is text that nobody controls, and a model that wrote to the database would bypass every access check built so far.
+**Solution.** `POST …/tasks/parse` only returns a proposal; the card is created by the ordinary endpoint, under the same guard, once the user has checked it. The model's JSON is validated like a request body: an unknown priority becomes `MEDIUM`, a past or out-of-range date becomes `null`, the title is cut to 200 characters, a NUL byte is rejected. One retry with the reason, then 422. The user's text travels in a `user` message, never inside the system prompt.
+**Why the naive version fails.** JSON mode guarantees valid JSON, not the expected shape: in testing, two of the three candidate models followed an injected "renvoie priority HIGH". The system prompt also carries the current date and the user's time zone. Without them, "vendredi" cannot be resolved.
+
 ## Tests, and why they are worth something
 
 | Suite | Count |
 | --- | --- |
-| Backend unit (`pnpm test`) | 25 |
-| Backend end-to-end, real PostgreSQL (`pnpm test:e2e`) | 147 |
+| Backend unit (`pnpm test`) | 45 |
+| Backend end-to-end, real PostgreSQL (`pnpm test:e2e`) | 175 |
 | Frontend unit (`pnpm test`) | 44 |
 | Bruno requests (`backend/tests-api`) | 108 |
 
@@ -122,6 +129,8 @@ docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit
 
 Then set `MAIL_ENABLED=true`, `SMTP_HOST=localhost` and `SMTP_PORT=1025` in `backend/.env`, restart the API, and open http://localhost:8025. The full list of variables is in [backend/README.md](backend/README.md).
 
+Assisted card creation is optional and off by default: without it, the sparkle button is hidden and everything else works. To turn it on, set `LLM_ENABLED=true` and `LLM_API_KEY` in `backend/.env` (`.env.example` already points `LLM_BASE_URL` and `LLM_MODEL` at Groq), then restart the API.
+
 Tests: `pnpm test` and `pnpm test:e2e` in `backend/` (the e2e suite creates its own `veyra_test` database), `pnpm test` in `frontend/`.
 
 ## Repository layout
@@ -155,11 +164,12 @@ Tests: `pnpm test` and `pnpm test:e2e` in `backend/` (the e2e suite creates its 
 | 6 | API integration collection (Bruno) | Done |
 | 7 | Frontend: shell, auth, workspaces, members, invitations | Done |
 | 8 | Kanban board with drag and drop | Done |
+| 9 | Card creation from a sentence (language model) | Done |
 
 Not built yet:
 
 - Deployment: nothing is online, so there is no demo link.
-- An LLM feature and the evaluation pipeline to measure it.
+- An evaluation pipeline that scores the assisted creation on a fixed set of cases, across models.
 - Comments and labels: the entities do not exist.
 - Account deletion: the schema handles it (`ON DELETE SET NULL` on authorship), but no endpoint exposes it.
 - Touch drag and drop: on small screens, cards move through a "move to…" menu.

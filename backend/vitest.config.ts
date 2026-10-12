@@ -9,5 +9,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    // Never a real language model call from a unit test, whatever .env says.
+    env: { LLM_ENABLED: 'false', LLM_API_KEY: '' },
   },
 });

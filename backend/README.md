@@ -104,6 +104,57 @@ assignés. Sûr avec plusieurs instances (`FOR UPDATE SKIP LOCKED`, tâches
 marquées avant l'envoi). Un OWNER peut déclencher la passe pour son workspace :
 `POST /workspaces/:workspaceId/reminders/run` (2 par minute).
 
+## Création assistée (optionnelle)
+
+`POST /workspaces/:workspaceId/lists/:listId/tasks/parse` reçoit une phrase
+(`{ text }`, 1 à 500 caractères) et renvoie une **proposition** de carte :
+`{ title, dueDate, priority, confidence, rawText }`. Rien n'est créé : le front
+montre la proposition, l'utilisateur la corrige, puis la carte est créée par
+le `POST …/lists/:listId/tasks` habituel, sous les mêmes contrôles qu'une
+création manuelle. Tout membre, 10 analyses par minute **par utilisateur**.
+
+Le fournisseur est n'importe quelle API compatible OpenAI Chat Completions
+(Groq, NVIDIA NIM, OpenRouter, Cerebras…), appelée par un simple `fetch` :
+en changer est une modification du `.env`, pas du code. Développé avec Groq et
+`qwen/qwen3.8-27b`.
+
+**L'application démarre et fonctionne sans aucune de ces variables** : si
+`LLM_ENABLED` ne vaut pas `true`, ou si la configuration est incomplète, aucun
+client n'est créé et aucune connexion n'est ouverte. `/parse` répond alors 503
+et `GET /features` renvoie `{ "assistedTaskCreation": false }`, ce qui masque
+le bouton dans l'interface. Les tests forcent `LLM_ENABLED=false` et injectent
+un client factice : aucun n'appelle de fournisseur.
+
+| Variable | Rôle |
+| --- | --- |
+| `LLM_ENABLED` | `true` pour activer ; toute autre valeur désactive la fonctionnalité |
+| `LLM_BASE_URL` | Base de l'API compatible OpenAI, ex. `https://api.groq.com/openai/v1` |
+| `LLM_API_KEY` | Clé du fournisseur (jamais loguée) |
+| `LLM_MODEL` | Modèle, ex. `qwen/qwen3.8-27b` |
+| `LLM_TIMEOUT_MS` | Délai par appel au fournisseur (défaut 15000) |
+
+Le prompt système contient la date, l'heure et le fuseau de l'utilisateur
+(`User.timezone`, sinon `DEFAULT_TIMEZONE`). La sortie du modèle est traitée
+comme une entrée utilisateur : JSON parsé dans un try/catch, validée
+(class-validator, `@NoNullBytes()`, `@IsStorableDate()`), priorité hors enum
+ramenée à `MEDIUM`, échéance passée ou hors fenêtre ramenée à `null`, titre
+tronqué à 200. Une seule relance, avec le motif du rejet ; puis 422.
+
+| Statut | Cas |
+| --- | --- |
+| 400 | Texte vide, plus de 500 caractères, octet NUL |
+| 404 | Liste hors du workspace (avant tout appel au modèle) |
+| 422 | Sortie inexploitable après la relance |
+| 429 | Limite de Veyra (10/min/utilisateur) ou du fournisseur |
+| 502 | Erreur du fournisseur (réseau, clé refusée, 5xx) |
+| 503 | Fonctionnalité non configurée |
+| 504 | Pas de réponse dans `LLM_TIMEOUT_MS` |
+
+Chaque analyse écrit une ligne `Task parse {…}` au niveau info : modèle,
+latence, tokens en entrée et en sortie, relance ou non, `confidence`, et les
+corrections appliquées à la sortie. Jamais la clé, jamais le texte ; le texte
+n'est logué (niveau debug) que si `NODE_ENV=development`.
+
 ## Limitations connues
 
 - **Suppression de compte utilisateur non exposée.** Une suppression directe en

@@ -12,16 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAssignTask, useUnassignTask, useUpdateTask } from "@/hooks/use-board";
 import { useMembers } from "@/hooks/use-members";
 import type { TaskChanges } from "@/lib/api";
 import { findTask } from "@/lib/board-cache";
-import { canDeleteTask, fromLocalInput, PRIORITY_LABELS, toLocalInput } from "@/lib/format";
-import type { FullBoard, ListWithTasks, Task, TaskPriority } from "@/lib/types";
+import { canDeleteTask, fromLocalInput, toLocalInput } from "@/lib/format";
+import type { FullBoard, ListWithTasks, Task } from "@/lib/types";
 import { useBoardContext } from "./board-context";
-
-const PRIORITIES: TaskPriority[] = ["HIGH", "MEDIUM", "LOW"];
+import { DueDateInput, PrioritySelect } from "./task-fields";
 
 /**
  * The detail drawer, open while the URL carries ?task={id}: 368px on the
@@ -118,18 +116,7 @@ function TaskDetail({ board, task, list }: { board: FullBoard; task: Task; list:
           <DueDateField task={task} onSave={(dueDate) => save({ dueDate })} />
         </Row>
         <Row label="Priorité">
-          <Select value={task.priority} onValueChange={(priority) => save({ priority: priority as TaskPriority })}>
-            <SelectTrigger size="sm" aria-label="Priorité" className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRIORITIES.map((priority) => (
-                <SelectItem key={priority} value={priority}>
-                  {PRIORITY_LABELS[priority]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PrioritySelect value={task.priority} onChange={(priority) => save({ priority })} />
         </Row>
         <Row label="Assigné à" alignTop>
           <Assignees task={task} />
@@ -242,38 +229,29 @@ function DueDateField({ task, onSave }: { task: Task; onSave: (dueDate: string |
   const cancelled = useRef(false);
   const saved = task.dueDate ? toLocalInput(task.dueDate) : "";
   return (
-    <div className="flex items-center gap-1.5">
-      <input
-        type="datetime-local"
-        aria-label="Échéance"
-        value={draft ?? saved}
-        onFocus={() => setDraft(saved)}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => {
-          if (!cancelled.current && draft !== null && draft !== saved) {
-            const iso = fromLocalInput(draft);
-            // An incomplete value is not a request to clear the date.
-            if (iso || draft === "") {
-              onSave(iso);
-            }
+    <DueDateInput
+      value={draft ?? saved}
+      onFocus={() => setDraft(saved)}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (!cancelled.current && draft !== null && draft !== saved) {
+          const iso = fromLocalInput(draft);
+          // An incomplete value is not a request to clear the date.
+          if (iso || draft === "") {
+            onSave(iso);
           }
-          cancelled.current = false;
-          setDraft(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            cancelled.current = true;
-            event.currentTarget.blur();
-          }
-        }}
-        className="h-8 min-w-0 rounded-button border border-rail bg-surface px-2 text-[13px] text-ink tabular-nums outline-none focus-visible:border-plum"
-      />
-      {task.dueDate && (
-        <Button variant="ghost" size="icon-sm" aria-label="Retirer l'échéance" onClick={() => onSave(null)}>
-          <X aria-hidden="true" />
-        </Button>
-      )}
-    </div>
+        }
+        cancelled.current = false;
+        setDraft(null);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          cancelled.current = true;
+          event.currentTarget.blur();
+        }
+      }}
+      onClear={task.dueDate ? () => onSave(null) : undefined}
+    />
   );
 }
 

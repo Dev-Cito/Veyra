@@ -31,7 +31,8 @@ export type ErrorContext =
   | "deleteTask"
   | "moveTask"
   | "assignTask"
-  | "unassignTask";
+  | "unassignTask"
+  | "parseTask";
 
 /** Same status, same action, two different states: the caller says which. */
 export interface ErrorHints {
@@ -109,6 +110,16 @@ const COPY: Record<number, Copy> = {
   },
 };
 
+/** Assisted creation: every case says what happened, the text is kept. */
+const PARSE_TASK: Record<number, string> = {
+  400: "Le texte doit contenir entre 1 et 500 caractères.",
+  422: "Je n'ai pas réussi à interpréter ce texte. Créez la carte manuellement.",
+  429: "Trop de demandes. Réessayez dans une minute.",
+  502: "Le service d'analyse a rencontré un problème. Réessayez, ou créez la carte manuellement.",
+  503: "La création assistée n'est pas disponible.",
+  504: "Le service a mis trop de temps à répondre.",
+};
+
 const SERVER_ERROR = "Le serveur a rencontré un problème. Votre action n'a pas été enregistrée.";
 
 export function errorMessage(
@@ -122,8 +133,16 @@ export function errorMessage(
   if (error.isNetworkError) {
     return error.message; // already French (see lib/api.ts), and dev-aware
   }
+  if (context === "parseTask" && PARSE_TASK[error.status]) {
+    // Checked before the generic 5xx copy: 503 and 504 have their own words.
+    return PARSE_TASK[error.status];
+  }
   if (error.status >= 500) {
     return SERVER_ERROR;
+  }
+  if (error.status === 400 && context === "createTask" && error.fieldErrors.dueDate) {
+    // A proposal reviewed for too long: its due date has passed meanwhile.
+    return "L'échéance est déjà passée. Choisissez une date à venir.";
   }
   if (error.status === 409 && context === "invite") {
     return hints.inviteConflict === "member"

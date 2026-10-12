@@ -148,3 +148,19 @@ export interface RevokedInvitation {
   email: string;
   revokedAt: string;
 }
+
+/** POST …/lists/:listId/tasks/parse: a proposal, nothing created yet. */
+export interface TaskProposal {
+  title: string;
+  /** ISO 8601 (UTC), or null when the text gives no usable date. */
+  dueDate: string | null;
+  priority: TaskPriority;
+  /** "low": the text was ambiguous, the interface asks to check. */
+  confidence: "high" | "medium" | "low";
+  rawText: string;
+}
+
+/** GET /features: what this deployment offers. */
+export interface Features {
+  assistedTaskCreation: boolean;
+}

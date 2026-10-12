@@ -6,6 +6,7 @@ import type {
   CreatedInvitation,
   DeletedList,
   DeletedWorkspace,
+  Features,
   FullBoard,
   Invitation,
   InvitationPreview,
@@ -19,6 +20,7 @@ import type {
   Task,
   TaskAssignee,
   TaskPriority,
+  TaskProposal,
   User,
   Workspace,
 } from "./types";
@@ -127,6 +129,13 @@ const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body 
 const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
 const del = <T>(path: string) => request<T>("DELETE", path);
 
+/** POST /lists/:id/tasks. */
+export interface NewTask {
+  title: string;
+  dueDate?: string;
+  priority?: TaskPriority;
+}
+
 /** PATCH /tasks/:id. `null` clears the description or the due date. */
 export interface TaskChanges {
   title?: string;
@@ -138,6 +147,10 @@ export interface TaskChanges {
 const ws = (workspaceId: string) => `/workspaces/${encodeURIComponent(workspaceId)}`;
 
 export const api = {
+  features: {
+    get: () => get<Features>("/features"),
+  },
+
   auth: {
     me: () => get<User>("/auth/me"),
     login: (body: { email: string; password: string }) =>
@@ -189,8 +202,13 @@ export const api = {
   },
 
   tasks: {
-    create: (workspaceId: string, listId: string, body: { title: string }) =>
+    create: (workspaceId: string, listId: string, body: NewTask) =>
       post<Task>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}/tasks`, body),
+    // Proposes a card from one sentence (a language model); creates nothing.
+    parse: (workspaceId: string, listId: string, text: string) =>
+      post<TaskProposal>(`${ws(workspaceId)}/lists/${encodeURIComponent(listId)}/tasks/parse`, {
+        text,
+      }),
     update: (workspaceId: string, taskId: string, body: TaskChanges) =>
       patch<Task>(`${ws(workspaceId)}/tasks/${encodeURIComponent(taskId)}`, body),
     move: (

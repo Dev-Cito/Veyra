@@ -3,9 +3,10 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +15,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCreateTask, useRenameList } from "@/hooks/use-board";
+import { useFeatures } from "@/hooks/use-features";
 import { columnDropId, listSortId } from "@/lib/board-dnd";
 import type { ListWithTasks, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { AssistedComposer } from "./assisted-composer";
 import { useBoardContext } from "./board-context";
 import { SortableTask } from "./task-card";
 
@@ -125,18 +128,80 @@ function RenameField({ list, onDone }: { list: ListWithTasks; onDone: () => void
   );
 }
 
-/** The "+" button under the header: any member can add a card. */
-export function AddCardButton({ list, onClick }: { list: ListWithTasks; onClick: () => void }) {
+/** Which composer is open in a column, if any. */
+export type Composer = null | { mode: "manual"; initialTitle?: string } | { mode: "assist" };
+
+/**
+ * Under the header: "+" (any member can add a card) and, when this server
+ * offers it, the sparkle for assisted creation. Hidden, never inert.
+ */
+export function ColumnAddRow({
+  list,
+  onCompose,
+}: {
+  list: ListWithTasks;
+  onCompose: (composer: Composer) => void;
+}) {
+  const { assistedTaskCreation } = useFeatures();
+  const shape =
+    "flex h-7 shrink-0 items-center justify-center rounded-[8px] bg-[#EBE9E3] text-ink-2 transition-colors hover:bg-hair hover:text-ink";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Ajouter une carte dans ${list.name}`}
-      className="mb-2.5 flex h-7 w-full shrink-0 items-center justify-center rounded-[8px] bg-[#EBE9E3] text-ink-2 transition-colors hover:bg-hair hover:text-ink"
-    >
-      <Plus className="size-4" aria-hidden="true" />
-    </button>
+    <div className="mb-2.5 flex gap-1.5">
+      <button
+        type="button"
+        onClick={() => onCompose({ mode: "manual" })}
+        aria-label={`Ajouter une carte dans ${list.name}`}
+        className={cn(shape, "flex-1")}
+      >
+        <Plus className="size-4" aria-hidden="true" />
+      </button>
+      {assistedTaskCreation && (
+        <Hint label="Créer une carte à partir d'une phrase">
+          <button
+            type="button"
+            onClick={() => onCompose({ mode: "assist" })}
+            aria-label={`Créer une carte à partir d'une phrase dans ${list.name}`}
+            className={cn(shape, "w-8 text-plum hover:text-plum")}
+          >
+            <Sparkles className="size-3.5" aria-hidden="true" />
+          </button>
+        </Hint>
+      )}
+    </div>
   );
+}
+
+/** The open composer of a column: manual, or assisted (which can hand over to manual). */
+export function ColumnComposer({
+  listId,
+  composer,
+  onCompose,
+}: {
+  listId: string;
+  composer: Composer;
+  onCompose: (composer: Composer) => void;
+}) {
+  if (composer?.mode === "assist") {
+    return (
+      <AssistedComposer
+        listId={listId}
+        onClose={() => onCompose(null)}
+        onManual={(text) => onCompose({ mode: "manual", initialTitle: text })}
+      />
+    );
+  }
+  if (composer?.mode === "manual") {
+    return (
+      <TaskComposer
+        // A new key when handed a sentence: the field starts from it.
+        key={composer.initialTitle ?? ""}
+        listId={listId}
+        initialTitle={composer.initialTitle}
+        onClose={() => onCompose(null)}
+      />
+    );
+  }
+  return null;
 }
 
 /**
@@ -144,10 +209,19 @@ export function AddCardButton({ list, onClick }: { list: ListWithTasks; onClick:
  * one, Escape closes it. New cards are appended by the server, so the field
  * sits where they appear: at the end of the column.
  */
-export function TaskComposer({ listId, onClose }: { listId: string; onClose: () => void }) {
+export function TaskComposer({
+  listId,
+  initialTitle = "",
+  onClose,
+}: {
+  listId: string;
+  /** From a failed assisted creation: the user's sentence, kept. */
+  initialTitle?: string;
+  onClose: () => void;
+}) {
   const { workspaceId, boardId } = useBoardContext();
   const create = useCreateTask(workspaceId, boardId);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const field = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -220,7 +294,7 @@ export function SortableColumn({
   onDelete: (list: ListWithTasks) => void;
 }) {
   const { manager } = useBoardContext();
-  const [composing, setComposing] = useState(false);
+  const [composer, setComposer] = useState<Composer>(null);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: listSortId(list.id),
     data: { type: "list", listId: list.id },
@@ -253,7 +327,7 @@ export function SortableColumn({
         handleRef={manager ? setActivatorNodeRef : undefined}
         handleProps={manager ? { ...attributes, ...listeners } : undefined}
       />
-      <AddCardButton list={list} onClick={() => setComposing(true)} />
+      <ColumnAddRow list={list} onCompose={setComposer} />
       <div ref={setBodyRef} className="-mx-1 min-h-16 flex-1 overflow-y-auto px-1 pt-px">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {taskIds.map((id) => {
@@ -265,10 +339,10 @@ export function SortableColumn({
             );
           })}
         </SortableContext>
-        {taskIds.length === 0 && !composing && (
+        {taskIds.length === 0 && !composer && (
           <EmptyColumnHint>Aucune carte. Déposez-en une ici, ou ajoutez-la avec +.</EmptyColumnHint>
         )}
-        {composing && <TaskComposer listId={list.id} onClose={() => setComposing(false)} />}
+        <ColumnComposer listId={list.id} composer={composer} onCompose={setComposer} />
       </div>
     </section>
   );
