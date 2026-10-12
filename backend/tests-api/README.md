@@ -1,7 +1,7 @@
 # Veyra — Collection de tests API (Bruno)
 
 Suite de tests manuels et automatisables contre l'API Veyra.
-**60 requêtes** réparties en 13 dossiers, avec assertions, capture
+**108 requêtes** réparties en 13 dossiers, avec assertions, capture
 automatique des identifiants, et le raisonnement de chaque test dans son
 bloc `docs`.
 
