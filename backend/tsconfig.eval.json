@@ -1,0 +1,15 @@
+{
+  // Compiles the offline evaluation (eval/) with the app code it imports, into
+  // dist-eval/. Separate from the app build (tsconfig.build.json: src only).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist-eval",
+    "declaration": false,
+    "sourceMap": false,
+    "incremental": false,
+    "types": ["node"]
+  },
+  "include": ["eval", "src"],
+  "exclude": ["node_modules", "dist", "dist-eval", "**/*.spec.ts"]
+}

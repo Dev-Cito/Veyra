@@ -13,7 +13,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "oxlint --type-aware src/ test/",
+    "lint": "oxlint --type-aware src/ test/ eval/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
@@ -22,7 +22,8 @@
     "typeorm": "node --env-file-if-exists=.env ./node_modules/typeorm/cli.js -d dist/database/data-source.js",
     "migration:generate": "pnpm build && pnpm typeorm migration:generate",
     "migration:run": "pnpm build && pnpm typeorm migration:run",
-    "migration:revert": "pnpm build && pnpm typeorm migration:revert"
+    "migration:revert": "pnpm build && pnpm typeorm migration:revert",
+    "eval:tasks": "tsc -p tsconfig.eval.json && node --env-file-if-exists=.env dist-eval/eval/run.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

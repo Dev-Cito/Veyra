@@ -24,7 +24,11 @@ import { WorkspaceScope } from '../../scope/workspace-scope.service.js';
 import type { User } from '../../users/user.entity.js';
 import type { WorkspaceMembership } from '../../workspaces/workspace-membership.js';
 import { buildRetryMessage, buildSystemPrompt } from './task-parse.prompt.js';
-import { type Confidence, normalizeProposal } from './task-proposal.js';
+import {
+  type Confidence,
+  normalizeProposal,
+  type TaskProposal,
+} from './task-proposal.js';
 import type { TaskPriority } from '../task-priority.enum.js';
 
 /** POST …/tasks/parse answers this. Nothing is created. */
@@ -75,101 +79,188 @@ export class TaskParserService {
       );
     }
 
-    const now = new Date();
-    const timeZone = resolveTimeZone(
-      user.timezone,
-      this.config.get<string>('DEFAULT_TIMEZONE'),
+    const outcome = await proposeTask(
+      this.client,
+      text,
+      {
+        now: new Date(),
+        timeZone: resolveTimeZone(
+          user.timezone,
+          this.config.get<string>('DEFAULT_TIMEZONE'),
+        ),
+      },
+      this.logger,
     );
-    // The user's text only ever travels in a `user` message: never
-    // concatenated into the system prompt.
-    const messages: LlmMessage[] = [
-      { role: 'system', content: buildSystemPrompt(now, timeZone) },
-      { role: 'user', content: text },
-    ];
-    if (process.env.NODE_ENV === 'development') {
-      // It may hold anything: development only, debug level only.
-      this.logger.debug(`Text to parse: ${JSON.stringify(text)}`);
+    if (!outcome.ok) {
+      throw outcome.error;
     }
+    const { proposal } = outcome;
+    return {
+      title: proposal.title,
+      dueDate: proposal.dueDate?.toISOString() ?? null,
+      priority: proposal.priority,
+      confidence: proposal.confidence,
+      rawText: text,
+    };
+  }
+}
 
-    const stats = new CallStats(this.client.model);
-    let lastError = '';
-    try {
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        stats.attempts = attempt;
-        let content: string | null;
-        try {
-          const completion = await this.client.complete({
-            messages,
-            temperature: TEMPERATURE,
-            json: true,
-          });
-          stats.add(completion);
-          content = completion.content;
-        } catch (err) {
-          if (!(err instanceof LlmOutputError)) {
-            throw err;
-          }
-          lastError = err.message;
-          messages.push({
-            role: 'user',
-            content: buildRetryMessage(lastError),
-          });
-          continue;
-        }
+/** What one parse cost, whatever its outcome: logged, and read by the offline eval. */
+export interface ParseStats {
+  model: string;
+  latencyMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  /** 1, or 2 when the first answer was rejected. */
+  attempts: number;
+}
 
-        const result = normalizeProposal(content, { now, timeZone });
-        if (result.ok) {
-          const { proposal } = result;
-          stats.log(this.logger, 'ok', {
-            confidence: proposal.confidence,
-            adjustments: result.adjustments,
-          });
-          return {
-            title: proposal.title,
-            dueDate: proposal.dueDate?.toISOString() ?? null,
-            priority: proposal.priority,
-            confidence: proposal.confidence,
-            rawText: text,
-          };
-        }
-        lastError = result.error;
-        messages.push(
-          { role: 'assistant', content: content ?? '' },
-          { role: 'user', content: buildRetryMessage(lastError) },
-        );
-      }
-    } catch (err) {
-      throw this.toHttp(err, stats);
+export type ParseOutcome =
+  | {
+      ok: true;
+      proposal: TaskProposal;
+      /** Repairs applied to the model's output (see normalizeProposal). */
+      adjustments: string[];
+      stats: ParseStats;
     }
+  | {
+      ok: false;
+      kind: 'unusable' | 'timeout' | 'rate-limited' | 'provider';
+      /** The HTTP error the endpoint answers with. */
+      error: HttpException;
+      reason: string;
+      stats: ParseStats;
+    };
 
-    stats.log(this.logger, 'unusable', { reason: lastError });
-    throw new UnprocessableEntityException(
-      'The model did not return a usable proposal; create the card manually',
-    );
+/**
+ * The model call itself: prompt, one retry with the reason of the
+ * rejection, validation, and one log line. Shared by the endpoint (through
+ * TaskParserService, after the access checks) and by the offline evaluation
+ * (backend/eval), which passes a fixed `now` per case: one parsing path.
+ */
+export async function proposeTask(
+  client: LlmClient,
+  text: string,
+  context: { now: Date; timeZone: string },
+  logger: Pick<Logger, 'log' | 'debug'>,
+): Promise<ParseOutcome> {
+  const { now, timeZone } = context;
+  // The user's text only ever travels in a `user` message: never
+  // concatenated into the system prompt.
+  const messages: LlmMessage[] = [
+    { role: 'system', content: buildSystemPrompt(now, timeZone) },
+    { role: 'user', content: text },
+  ];
+  if (process.env.NODE_ENV === 'development') {
+    // It may hold anything: development only, debug level only.
+    logger.debug(`Text to parse: ${JSON.stringify(text)}`);
   }
 
-  private toHttp(err: unknown, stats: CallStats): Error {
-    if (err instanceof LlmTimeoutError) {
-      stats.log(this.logger, 'timeout');
-      return new GatewayTimeoutException(
-        'The language model did not answer in time',
+  const stats = new CallStats(client.model);
+  let lastError = '';
+  try {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      stats.attempts = attempt;
+      let content: string | null;
+      try {
+        const completion = await client.complete({
+          messages,
+          temperature: TEMPERATURE,
+          json: true,
+        });
+        stats.add(completion);
+        content = completion.content;
+      } catch (err) {
+        if (!(err instanceof LlmOutputError)) {
+          throw err;
+        }
+        lastError = err.message;
+        messages.push({
+          role: 'user',
+          content: buildRetryMessage(lastError),
+        });
+        continue;
+      }
+
+      const result = normalizeProposal(content, { now, timeZone });
+      if (result.ok) {
+        stats.log(logger, 'ok', {
+          confidence: result.proposal.confidence,
+          adjustments: result.adjustments,
+        });
+        return {
+          ok: true,
+          proposal: result.proposal,
+          adjustments: result.adjustments,
+          stats: stats.snapshot(),
+        };
+      }
+      lastError = result.error;
+      messages.push(
+        { role: 'assistant', content: content ?? '' },
+        { role: 'user', content: buildRetryMessage(lastError) },
       );
     }
-    if (err instanceof LlmRateLimitError) {
-      stats.log(this.logger, 'provider rate limit', {
-        retryAfter: err.retryAfterSeconds,
-      });
-      return new HttpException(
+  } catch (err) {
+    return failure(err, stats, logger);
+  }
+
+  stats.log(logger, 'unusable', { reason: lastError });
+  return {
+    ok: false,
+    kind: 'unusable',
+    error: new UnprocessableEntityException(
+      'The model did not return a usable proposal; create the card manually',
+    ),
+    reason: lastError,
+    stats: stats.snapshot(),
+  };
+}
+
+/** Provider failures become outcomes; anything else is a bug and is rethrown. */
+function failure(
+  err: unknown,
+  stats: CallStats,
+  logger: Pick<Logger, 'log'>,
+): ParseOutcome {
+  if (err instanceof LlmTimeoutError) {
+    stats.log(logger, 'timeout');
+    return {
+      ok: false,
+      kind: 'timeout',
+      error: new GatewayTimeoutException(
+        'The language model did not answer in time',
+      ),
+      reason: err.message,
+      stats: stats.snapshot(),
+    };
+  }
+  if (err instanceof LlmRateLimitError) {
+    stats.log(logger, 'provider rate limit', {
+      retryAfter: err.retryAfterSeconds,
+    });
+    return {
+      ok: false,
+      kind: 'rate-limited',
+      error: new HttpException(
         "The language model provider's rate limit was reached; try again in a minute",
         HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    if (err instanceof LlmProviderError) {
-      stats.log(this.logger, 'provider error', { reason: err.message });
-      return new BadGatewayException('The language model provider failed');
-    }
-    return err instanceof Error ? err : new Error('unknown error');
+      ),
+      reason: `retry after ${err.retryAfterSeconds ?? '?'} s`,
+      stats: stats.snapshot(),
+    };
   }
+  if (err instanceof LlmProviderError) {
+    stats.log(logger, 'provider error', { reason: err.message });
+    return {
+      ok: false,
+      kind: 'provider',
+      error: new BadGatewayException('The language model provider failed'),
+      reason: err.message,
+      stats: stats.snapshot(),
+    };
+  }
+  throw err;
 }
 
 /**
@@ -197,18 +288,26 @@ class CallStats {
     this.outputTokens = sum(this.outputTokens, completion.usage.outputTokens);
   }
 
-  log(
-    logger: Logger,
-    outcome: string,
-    extra: Record<string, unknown> = {},
-  ): void {
-    const fields: Record<string, unknown> = {
-      outcome,
+  snapshot(): ParseStats {
+    return {
       model: this.answeredBy ?? this.model,
       latencyMs: Math.round(performance.now() - this.started),
       inputTokens: this.inputTokens,
       outputTokens: this.outputTokens,
-      retried: this.attempts > 1,
+      attempts: this.attempts,
+    };
+  }
+
+  log(
+    logger: Pick<Logger, 'log'>,
+    outcome: string,
+    extra: Record<string, unknown> = {},
+  ): void {
+    const { attempts, ...snapshot } = this.snapshot();
+    const fields: Record<string, unknown> = {
+      outcome,
+      ...snapshot,
+      retried: attempts > 1,
       ...extra,
     };
     logger.log(`Task parse ${JSON.stringify(fields)}`);

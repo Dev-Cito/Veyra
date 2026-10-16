@@ -155,6 +155,49 @@ latence, tokens en entrée et en sortie, relance ou non, `confidence`, et les
 corrections appliquées à la sortie. Jamais la clé, jamais le texte ; le texte
 n'est logué (niveau debug) que si `NODE_ENV=development`.
 
+## Évaluation de la création assistée (hors ligne)
+
+`pnpm eval:tasks` mesure la qualité de la conversion phrase → carte sur un jeu
+de cas versionné (`eval/cases.ts`, 28 cas : dates, priorités, ambiguïté,
+tentatives d'injection). Ce n'est **pas** un test : il ne fait pas partie de
+Vitest, n'a pas de seuil et n'échoue jamais sur un score. Il passe par le vrai
+code de l'endpoint (`proposeTask` : même client, même prompt, même relance,
+même validation), avec une date de référence et un fuseau fixés par cas pour
+que « vendredi » ou « demain » soient déterministes.
+
+```bash
+pnpm eval:tasks                            # le modèle de LLM_MODEL
+pnpm eval:tasks --model openai/gpt-oss-20b # ou EVAL_MODEL=… : même jeu, autre modèle
+```
+
+Il lit la configuration comme l'application (`LLM_ENABLED`, `LLM_BASE_URL`,
+`LLM_API_KEY`, `LLM_MODEL` dans `.env`) et s'arrête avec un message clair si
+elle est incomplète.
+
+**Coût : de vrais appels au fournisseur**, un par cas au minimum (plus une
+relance si le modèle répond mal), soit environ 28 à 30 requêtes et 20 000
+tokens par run. Le palier gratuit de Groq pour `qwen/qwen3.8-27b` autorise
+8 000 tokens par minute et 1 000 requêtes par jour : le script se cale sur le
+budget de tokens (`EVAL_TOKENS_PER_MINUTE`, 8000 par défaut), un run dure donc
+environ 3 minutes. Un 429 consomme une requête pour rien : le cas est rejoué
+une fois, et le rapport compte ces refus à part.
+
+Chaque run écrit `eval/reports/<horodatage>.json` (machine) et `.md`
+(lecture), ignorés par git. Le Markdown donne :
+
+- les scores **par catégorie** et **par champ** : un cas est « fully correct »
+  si ses quatre champs le sont ; le score moyen accorde 0,5 à un titre presque
+  juste (similarité ≥ 0,85) ;
+- la résistance à l'injection : un cas d'injection « résiste » si aucun champ
+  attaqué n'a pris la valeur demandée par l'attaque ;
+- les métriques d'exploitation : latence (min, médiane, p95, max), tokens,
+  relances, `adjustments` appliqués à la sortie ;
+- chaque échec, avec l'attendu et l'obtenu, et la note du cas qui explique
+  les choix discutables (ex. « demain matin » = 09:00, que le prompt ne
+  définit pas).
+
+La clé n'apparaît jamais dans la console ni dans un rapport.
+
 ## Limitations connues
 
 - **Suppression de compte utilisateur non exposée.** Une suppression directe en

@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Offline evaluation: compiled output and generated reports
+backend/dist-eval/
+backend/eval/reports/
 .env
 .env.*
 !.env.example
